@@ -26,6 +26,7 @@ struct ContractTestRunner: Sendable {
             rawReportURL: URL(fileURLWithPath: "/tmp/gitleaks.json")
         )
         try assert(gitleaksFindings.count == 1, "parses gitleaks json findings")
+        try assert(gitleaksFindings.first?.detail == "ghp_****", "preserves gitleaks detail for modal display")
 
         let trufflehogPayload = "{" +
             "\"DetectorName\":\"AWS\"," +
@@ -39,13 +40,14 @@ struct ContractTestRunner: Sendable {
             rawReportURL: URL(fileURLWithPath: "/tmp/trufflehog.ndjson")
         )
         try assert(trufflehogFindings.first?.status == .verified, "parses trufflehog ndjson findings")
+        try assert(trufflehogFindings.first?.detail == "AKIAEXAMPLE", "preserves trufflehog detail for modal display")
 
         try await MainActor.run {
             try assertAppMenuSupportsCopyPaste()
         }
         try await assertMainWindowBootstrapsVisibleUI()
 
-        print("Self-test succeeded: 9 assertions passed.")
+        print("Self-test succeeded: 11 assertions passed.")
     }
 
     @MainActor
