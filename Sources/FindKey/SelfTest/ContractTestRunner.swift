@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 struct ContractTestRunner: Sendable {
@@ -39,7 +40,30 @@ struct ContractTestRunner: Sendable {
         )
         try assert(trufflehogFindings.first?.status == .verified, "parses trufflehog ndjson findings")
 
-        print("Self-test succeeded: 7 assertions passed.")
+        try await assertMainWindowBootstrapsVisibleUI()
+
+        print("Self-test succeeded: 8 assertions passed.")
+    }
+
+    @MainActor
+    private func assertMainWindowBootstrapsVisibleUI() throws {
+        let controller = AppController(
+            repositoryService: GitHubRepositoryService(parser: GitHubURLParser(), client: SelfTestHTTPClient(responses: [:])),
+            scanOrchestrator: ScanOrchestrator(
+                cloneService: RepositoryCloneService(commandRunner: ProcessRunner()),
+                gitleaksRunner: GitleaksRunner(toolLocator: ExternalToolLocator(), commandRunner: ProcessRunner()),
+                truffleHogRunner: TruffleHogRunner(toolLocator: ExternalToolLocator(), commandRunner: ProcessRunner())
+            )
+        )
+        let windowController = MainWindowController(appController: controller)
+        let window = try unwrap(windowController.window, "creates the main window")
+        let contentSubviews = window.contentView?.subviews ?? []
+        try assert(contentSubviews.isEmpty == false, "bootstraps visible main window UI")
+        try assert(windowController.hasBuiltInterface, "builds interface without relying on windowDidLoad")
+        try assert(contentSubviews.first is NSSplitView, "attaches split view to the main window")
+        let labels = collectLabels(in: contentSubviews)
+        try assert(labels.contains("GitHub 저장소 목록 URL을 입력해 시작하세요."), "shows Korean default status text")
+        try assert(labels.contains("스캔 결과"), "shows Korean results header")
     }
 
     private func assert(_ condition: @autoclosure () throws -> Bool, _ message: String) throws {
@@ -59,6 +83,29 @@ struct ContractTestRunner: Sendable {
         } catch {
             print("PASS \(message)")
         }
+    }
+
+    private func unwrap<T>(_ value: T?, _ message: String) throws -> T {
+        guard let value else {
+            throw FindKeyError.commandFailed("Assertion failed: \(message)")
+        }
+
+        return value
+    }
+
+    @MainActor
+    private func collectLabels(in views: [NSView]) -> [String] {
+        var labels: [String] = []
+
+        for view in views {
+            if let label = view as? NSTextField, !label.stringValue.isEmpty {
+                labels.append(label.stringValue)
+            }
+
+            labels.append(contentsOf: collectLabels(in: view.subviews))
+        }
+
+        return labels
     }
 }
 
