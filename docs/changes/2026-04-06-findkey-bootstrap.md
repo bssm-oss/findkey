@@ -13,7 +13,9 @@ Create a maintainable Swift/AppKit application that resolves GitHub organization
 - Bootstrapped a Swift Package Manager AppKit application.
 - Added a single-window AppKit UI for URL input, optional token input, repository enumeration, scan progress, findings, and raw reports.
 - Added GitHub repository discovery, local clone workflow, external tool discovery, and scanner runners.
-- Hardened runtime behavior so failed re-resolves do not leave stale repositories scannable, per-repository scan failures are skipped instead of aborting the full batch, and TruffleHog raw output is sanitized before presentation.
+- Hardened runtime behavior so failed re-resolves do not leave stale repositories scannable and per-repository scan failures are skipped instead of aborting the full batch.
+- Added a double-click detail sheet so users can inspect the selected finding and its raw report directly from the compact UI.
+- Preserved scanner detail values in memory so the UI can show the selected finding and raw report after scan completion.
 - Added an internal contract-test mode because standard Swift test frameworks are unavailable in the current CLI environment.
 - Added packaging scripts for unsigned `.app` and `.dmg` creation.
 - Added CI for build validation, DMG validation, and release publishing.

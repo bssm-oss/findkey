@@ -74,8 +74,8 @@ GitHub URL input
 
 - Tokens are optional and session-only.
 - Tokens are applied to GitHub API requests and temporary git environment configuration, not persisted in config files.
-- Gitleaks output is redacted via `--redact=100`.
-- TruffleHog runs without active verification and stored raw report output is sanitized before presentation.
+- Gitleaks output is collected without forced redaction so selected findings can be inspected in the desktop UI.
+- TruffleHog runs without active verification and the stored raw report is preserved for the detail sheet and raw report view.
 - Temporary clones and reports are deleted after the scan completes.
 
 ## Packaging Strategy
