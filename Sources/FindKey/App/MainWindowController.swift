@@ -23,6 +23,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
     private let rawReportContainer = NSScrollView()
     private let rawReportTextView = NSTextView()
     private let rootContentView = ThemedContainerView()
+    private var findingDetailSheetWindow: NSWindow?
     private(set) var hasBuiltInterface = false
 
     init(appController: AppController) {
@@ -185,6 +186,8 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         findingsTableView.rowHeight = 24
         findingsTableView.delegate = self
         findingsTableView.dataSource = self
+        findingsTableView.target = self
+        findingsTableView.doubleAction = #selector(didDoubleClickFindingRow)
 
         ["repository", "tool", "detector", "path", "status"].forEach { identifier in
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(identifier))
@@ -330,6 +333,222 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         let showFindings = resultsSegmentedControl.selectedSegment == ResultTab.findings.rawValue
         findingsContainer.isHidden = !showFindings
         rawReportContainer.isHidden = showFindings
+    }
+
+    @objc
+    private func didDoubleClickFindingRow() {
+        let row = findingsTableView.clickedRow >= 0 ? findingsTableView.clickedRow : findingsTableView.selectedRow
+        guard appController.state.findings.indices.contains(row) else { return }
+
+        findingsTableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        presentFindingDetailSheet(for: appController.state.findings[row])
+    }
+
+    @objc
+    private func dismissFindingDetailSheet() {
+        guard let sheetWindow = findingDetailSheetWindow,
+              let parentWindow = window
+        else {
+            return
+        }
+
+        parentWindow.endSheet(sheetWindow)
+    }
+
+    private func presentFindingDetailSheet(for finding: ScanFinding) {
+        guard let parentWindow = window else { return }
+
+        if let existingSheet = findingDetailSheetWindow,
+           parentWindow.attachedSheet === existingSheet {
+            parentWindow.endSheet(existingSheet)
+        }
+
+        let sheetWindow = buildFindingDetailSheetWindow(for: finding)
+        findingDetailSheetWindow = sheetWindow
+        parentWindow.beginSheet(sheetWindow) { [weak self] _ in
+            self?.findingDetailSheetWindow = nil
+        }
+    }
+
+    private func buildFindingDetailSheetWindow(for finding: ScanFinding) -> NSWindow {
+        let sheetWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 560, height: 420),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+
+        sheetWindow.title = "결과 상세"
+        sheetWindow.titleVisibility = .hidden
+        sheetWindow.titlebarAppearsTransparent = true
+        sheetWindow.backgroundColor = Theme.background
+        sheetWindow.isOpaque = true
+        sheetWindow.minSize = NSSize(width: 560, height: 420)
+        sheetWindow.maxSize = NSSize(width: 560, height: 420)
+
+        let contentView = ThemedContainerView()
+        contentView.fillColor = Theme.background
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        sheetWindow.contentView = contentView
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.spacing = 12
+        stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let titleLabel = LabelFactory.section("결과 상세")
+        let closeButton = NSButton(title: "닫기", target: nil, action: nil)
+        configure(button: closeButton, primary: false, action: #selector(dismissFindingDetailSheet))
+        closeButton.widthAnchor.constraint(equalToConstant: 72).isActive = true
+
+        let headerRow = NSStackView()
+        headerRow.orientation = .horizontal
+        headerRow.alignment = .centerY
+        headerRow.spacing = 8
+        headerRow.addArrangedSubview(titleLabel)
+        headerRow.addArrangedSubview(NSView())
+        headerRow.addArrangedSubview(closeButton)
+
+        let metadataContainer = ThemedContainerView()
+        metadataContainer.fillColor = Theme.surface
+        metadataContainer.strokeColor = Theme.subtleBorder
+        metadataContainer.translatesAutoresizingMaskIntoConstraints = false
+
+        let metadataStack = NSStackView()
+        metadataStack.orientation = .vertical
+        metadataStack.spacing = 6
+        metadataStack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        metadataStack.translatesAutoresizingMaskIntoConstraints = false
+
+        [
+            makeMetadataRow(label: "저장소", value: finding.repository),
+            makeMetadataRow(label: "도구", value: finding.tool.rawValue),
+            makeMetadataRow(label: "탐지기", value: finding.detector),
+            makeMetadataRow(label: "경로", value: finding.pathWithLine),
+            makeMetadataRow(label: "상태", value: finding.status.rawValue),
+        ].forEach { metadataStack.addArrangedSubview($0) }
+
+        metadataContainer.addSubview(metadataStack)
+
+        NSLayoutConstraint.activate([
+            metadataStack.leadingAnchor.constraint(equalTo: metadataContainer.leadingAnchor),
+            metadataStack.trailingAnchor.constraint(equalTo: metadataContainer.trailingAnchor),
+            metadataStack.topAnchor.constraint(equalTo: metadataContainer.topAnchor),
+            metadataStack.bottomAnchor.constraint(equalTo: metadataContainer.bottomAnchor),
+        ])
+
+        let detailBlock = makeDetailBlock(
+            title: "탐지 내용",
+            text: finding.detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "표시할 상세 내용이 없습니다." : finding.detail,
+            minimumHeight: 148
+        )
+
+        let reportBlock = makeDetailBlock(
+            title: "원본 리포트",
+            text: rawReportContents(for: finding),
+            minimumHeight: 148
+        )
+
+        stack.addArrangedSubview(headerRow)
+        stack.addArrangedSubview(metadataContainer)
+        stack.addArrangedSubview(detailBlock)
+        stack.addArrangedSubview(reportBlock)
+
+        contentView.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: contentView.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+        ])
+
+        return sheetWindow
+    }
+
+    private func rawReportContents(for finding: ScanFinding) -> String {
+        if let rawReport = appController.state.rawReports.first(where: { $0.repository == finding.repository && $0.tool == finding.tool }) {
+            let contents = rawReport.contents.trimmingCharacters(in: .whitespacesAndNewlines)
+            return contents.isEmpty ? "원본 리포트 내용이 없습니다." : contents
+        }
+
+        return "연결된 원본 리포트를 찾을 수 없습니다."
+    }
+
+    private func makeMetadataRow(label: String, value: String) -> NSView {
+        let row = NSStackView()
+        row.orientation = .horizontal
+        row.alignment = .top
+        row.spacing = 8
+
+        let labelField = NSTextField(labelWithString: label)
+        labelField.font = Theme.font(size: 11, weight: .medium)
+        labelField.textColor = Theme.textSecondary
+        labelField.setContentHuggingPriority(.required, for: .horizontal)
+        labelField.widthAnchor.constraint(equalToConstant: 54).isActive = true
+
+        let valueField = NSTextField(wrappingLabelWithString: value)
+        valueField.font = Theme.font(size: 11)
+        valueField.textColor = Theme.textPrimary
+        valueField.lineBreakMode = .byWordWrapping
+        valueField.maximumNumberOfLines = 0
+
+        row.addArrangedSubview(labelField)
+        row.addArrangedSubview(valueField)
+        return row
+    }
+
+    private func makeDetailBlock(title: String, text: String, minimumHeight: CGFloat) -> NSView {
+        let container = ThemedContainerView()
+        container.fillColor = Theme.surface
+        container.strokeColor = Theme.subtleBorder
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.spacing = 8
+        stack.edgeInsets = NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        let titleLabel = NSTextField(labelWithString: title)
+        titleLabel.font = Theme.font(size: 11, weight: .medium)
+        titleLabel.textColor = Theme.textSecondary
+
+        let textView = NSTextView()
+        textView.string = text
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.font = Theme.font(size: 11)
+        textView.textColor = Theme.textPrimary
+        textView.backgroundColor = Theme.background
+        textView.drawsBackground = true
+        textView.isHorizontallyResizable = false
+        textView.isVerticallyResizable = true
+        textView.textContainerInset = NSSize(width: 6, height: 6)
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+
+        let scrollView = NSScrollView()
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.documentView = textView
+        scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: minimumHeight).isActive = true
+
+        stack.addArrangedSubview(titleLabel)
+        stack.addArrangedSubview(scrollView)
+        container.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: container.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+
+        return container
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int {

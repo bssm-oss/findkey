@@ -21,6 +21,7 @@ struct ScanFinding: Hashable, Identifiable, Sendable {
     let line: Int?
     let status: ScanFindingStatus
     let preview: String
+    let detail: String
     let rawReportURL: URL
 
     var pathWithLine: String {
