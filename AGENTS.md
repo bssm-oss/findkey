@@ -19,7 +19,8 @@ swift run FindKey
 - Contract tests: `swift run FindKey -- --self-test`
 - Build unsigned app bundle: `bash scripts/build-app.sh <version>`
 - Build unsigned DMG: `bash scripts/build-dmg.sh <version>`
-- Install local Homebrew cask: `brew tap bssm-oss/findkey "$(pwd)" && brew install --cask bssm-oss/findkey/findkey`
+- Inspect local Homebrew cask metadata: `brew tap bssm-oss/findkey "$(pwd)" && brew info --cask bssm-oss/findkey/findkey`
+- Install published Homebrew cask after the first release exists: `brew tap bssm-oss/findkey https://github.com/bssm-oss/findkey && brew install --cask bssm-oss/findkey/findkey`
 
 ## Default Work Order
 

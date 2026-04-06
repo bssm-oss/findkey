@@ -90,16 +90,16 @@ Output:
 
 ## Homebrew Installation
 
-### Install from the local repository checkout
+### Validate the cask from the local repository checkout
 
 ```bash
 brew tap bssm-oss/findkey "$(pwd)"
-brew install --cask bssm-oss/findkey/findkey
+brew info --cask bssm-oss/findkey/findkey
 ```
 
 ### Install from this repository as a tap
 
-After the repository has a usable default branch and published releases:
+After the repository has a usable default branch and at least one published release:
 
 ```bash
 brew tap bssm-oss/findkey https://github.com/bssm-oss/findkey
@@ -109,6 +109,8 @@ brew install --cask bssm-oss/findkey/findkey
 The cask resolves the latest GitHub Release asset at:
 
 - `https://github.com/bssm-oss/findkey/releases/latest/download/FindKey.dmg`
+
+That URL does not exist until the first tagged release has been published.
 
 ## GitHub Token Behavior
 
