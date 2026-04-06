@@ -18,6 +18,7 @@ Create a maintainable Swift/AppKit application that resolves GitHub organization
 - Added packaging scripts for unsigned `.app` and `.dmg` creation.
 - Added CI for build validation, DMG validation, and release publishing.
 - Added a repository-local Homebrew Cask backed by the latest GitHub Release DMG alias.
+- Added ad-hoc app signing and Homebrew postflight quarantine removal to reduce Gatekeeper launch failures after brew installation.
 
 ## Design Decisions
 

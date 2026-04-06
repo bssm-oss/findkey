@@ -80,7 +80,7 @@ GitHub URL input
 
 ## Packaging Strategy
 
-- `scripts/build-app.sh` compiles the release binary and assembles `FindKey.app`.
+- `scripts/build-app.sh` compiles the release binary, assembles `FindKey.app`, and applies an ad-hoc signature.
 - `scripts/build-dmg.sh` wraps the `.app` in an unsigned DMG and creates a stable `FindKey.dmg` alias for Homebrew Cask installation.
 - `Casks/findkey.rb` installs the latest published DMG through Homebrew.
 - GitHub Actions release workflow uploads the DMGs on version tags.

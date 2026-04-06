@@ -15,7 +15,8 @@ cask "findkey" do
 
   app "FindKey.app"
 
-  caveats do
-    unsigned_accessibility
+  postflight do
+    system_command "/usr/bin/xattr",
+                   args: ["-dr", "com.apple.quarantine", "#{appdir}/FindKey.app"]
   end
 end
