@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - feat/**
+      - fix/**
+      - chore/**
+      - docs/**
+      - ci/**
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build package
+        run: swift build
+
+      - name: Run contract tests
+        run: swift run FindKey -- --self-test
+
+      - name: Build unsigned app bundle
+        run: bash scripts/build-app.sh ci
+
+      - name: Build unsigned DMG
+        run: bash scripts/build-dmg.sh ci
