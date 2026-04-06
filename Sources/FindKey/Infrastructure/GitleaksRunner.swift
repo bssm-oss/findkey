@@ -20,7 +20,6 @@ struct GitleaksRunner: Sendable {
                 "git",
                 "--report-format", "json",
                 "--report-path", reportURL.path,
-                "--redact=100",
                 "--exit-code", "0",
                 repositoryPath.path,
             ],
@@ -58,6 +57,7 @@ struct GitleaksReportParser: Sendable {
                 line: finding.startLine ?? finding.line,
                 status: .detected,
                 preview: finding.secret ?? finding.match ?? finding.description ?? "Secret detected by Gitleaks.",
+                detail: finding.match ?? finding.secret ?? finding.description ?? "Secret detected by Gitleaks.",
                 rawReportURL: rawReportURL
             )
         }
