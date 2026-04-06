@@ -11,22 +11,24 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
     private let githubURLField = NSTextField(string: "")
     private let tokenField = NSSecureTextField(string: "")
-    private let enumerateButton = NSButton(title: "Resolve", target: nil, action: nil)
-    private let scanButton = NSButton(title: "Scan", target: nil, action: nil)
-    private let repoCountLabel = LabelFactory.body("No repositories loaded.")
-    private let sidebarStatusLabel = LabelFactory.body("Gitleaks and TruffleHog must be installed locally.")
+    private let enumerateButton = NSButton(title: "저장소 조회", target: nil, action: nil)
+    private let scanButton = NSButton(title: "스캔 시작", target: nil, action: nil)
+    private let repoCountLabel = LabelFactory.body("아직 조회된 저장소가 없습니다.")
+    private let sidebarStatusLabel = LabelFactory.body("Gitleaks와 TruffleHog가 로컬에 설치되어 있어야 합니다.")
 
-    private let topStatusLabel = NSTextField(labelWithString: "Enter a GitHub repositories URL to begin.")
-    private let countsLabel = NSTextField(labelWithString: "repos 0 • findings 0")
+    private let topStatusLabel = NSTextField(labelWithString: "GitHub 저장소 목록 URL을 입력해 시작하세요.")
+    private let countsLabel = NSTextField(labelWithString: "저장소 0개 • 결과 0건")
     private let progressIndicator = NSProgressIndicator()
     private let errorLabel = NSTextField(labelWithString: "")
 
     private let repositoryTableView = NSTableView()
     private let findingsTableView = NSTableView()
-    private let resultsSegmentedControl = NSSegmentedControl(labels: ["Findings", "Raw Report"], trackingMode: .selectOne, target: nil, action: nil)
+    private let resultsSegmentedControl = NSSegmentedControl(labels: ["결과", "원본 리포트"], trackingMode: .selectOne, target: nil, action: nil)
     private let findingsContainer = NSScrollView()
     private let rawReportContainer = NSScrollView()
     private let rawReportTextView = NSTextView()
+    private let rootContentView = ThemedContainerView()
+    private(set) var hasBuiltInterface = false
 
     init(appController: AppController) {
         self.appController = appController
@@ -41,8 +43,15 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         window.title = "FindKey"
         window.titlebarAppearsTransparent = true
         window.backgroundColor = Theme.background
+        window.isOpaque = true
+
+        rootContentView.fillColor = Theme.background
+        rootContentView.translatesAutoresizingMaskIntoConstraints = false
+        window.contentView = rootContentView
 
         super.init(window: window)
+        ensureInterfaceBuilt()
+        render(state: appController.state)
 
         appController.onStateChange = { [weak self] state in
             self?.render(state: state)
@@ -56,12 +65,17 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
     override func windowDidLoad() {
         super.windowDidLoad()
-        buildInterface()
+        ensureInterfaceBuilt()
         render(state: appController.state)
     }
 
+    private func ensureInterfaceBuilt() {
+        guard !hasBuiltInterface else { return }
+        buildInterface()
+    }
+
     private func buildInterface() {
-        guard let contentView = window?.contentView else { return }
+        hasBuiltInterface = true
 
         let splitView = NSSplitView()
         splitView.isVertical = true
@@ -77,13 +91,13 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         splitView.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
         splitView.setPosition(320, ofDividerAt: 0)
 
-        contentView.addSubview(splitView)
+        rootContentView.addSubview(splitView)
 
         NSLayoutConstraint.activate([
-            splitView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            splitView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            splitView.topAnchor.constraint(equalTo: contentView.topAnchor),
-            splitView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            splitView.leadingAnchor.constraint(equalTo: rootContentView.leadingAnchor),
+            splitView.trailingAnchor.constraint(equalTo: rootContentView.trailingAnchor),
+            splitView.topAnchor.constraint(equalTo: rootContentView.topAnchor),
+            splitView.bottomAnchor.constraint(equalTo: rootContentView.bottomAnchor),
             sidebar.widthAnchor.constraint(equalToConstant: 320),
         ])
     }
@@ -116,13 +130,13 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         brandRow.addArrangedSubview(logoView)
         brandRow.addArrangedSubview(title)
 
-        let subtitle = LabelFactory.body("Resolve a GitHub organization or user URL, then scan each repository with Gitleaks and TruffleHog.")
+        let subtitle = LabelFactory.body("GitHub 조직 또는 사용자 저장소 URL을 입력한 뒤, 각 저장소를 Gitleaks와 TruffleHog로 검사합니다.")
 
         githubURLField.placeholderString = "https://github.com/orgs/bssm-oss/repositories"
         githubURLField.font = Theme.font(size: 13)
         githubURLField.focusRingType = .none
 
-        tokenField.placeholderString = "ghp_... (optional)"
+        tokenField.placeholderString = "ghp_... (선택 사항)"
         tokenField.font = Theme.font(size: 13)
         tokenField.focusRingType = .none
 
@@ -138,7 +152,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         repositoryTableView.dataSource = self
 
         let repoColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("repository"))
-        repoColumn.title = "Repository"
+        repoColumn.title = "저장소"
         repoColumn.width = 240
         repositoryTableView.addTableColumn(repoColumn)
 
@@ -152,15 +166,15 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         stack.addArrangedSubview(brandRow)
         stack.addArrangedSubview(subtitle)
-        stack.addArrangedSubview(LabelFactory.section("Target"))
+        stack.addArrangedSubview(LabelFactory.section("대상 URL"))
         stack.addArrangedSubview(githubURLField)
-        stack.addArrangedSubview(LabelFactory.section("Access Token (optional)"))
+        stack.addArrangedSubview(LabelFactory.section("접근 토큰 (선택 사항)"))
         stack.addArrangedSubview(tokenField)
         stack.addArrangedSubview(enumerateButton)
         stack.addArrangedSubview(scanButton)
         stack.addArrangedSubview(repoCountLabel)
         stack.addArrangedSubview(sidebarStatusLabel)
-        stack.addArrangedSubview(LabelFactory.section("Repositories"))
+        stack.addArrangedSubview(LabelFactory.section("조회된 저장소"))
         stack.addArrangedSubview(repoScrollView)
 
         sidebar.addSubview(stack)
@@ -210,7 +224,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         headerRow.spacing = 12
         headerRow.alignment = .centerY
 
-        let title = NSTextField(labelWithString: "Results")
+        let title = NSTextField(labelWithString: "스캔 결과")
         title.font = Theme.font(size: 16, weight: .bold)
         title.textColor = Theme.textPrimary
 
@@ -231,7 +245,14 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         ["repository", "tool", "detector", "path", "status"].forEach { identifier in
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(identifier))
-            column.title = identifier.capitalized
+            column.title = switch identifier {
+            case "repository": "저장소"
+            case "tool": "도구"
+            case "detector": "탐지기"
+            case "path": "경로"
+            case "status": "상태"
+            default: identifier.capitalized
+            }
             column.width = identifier == "detector" ? 250 : 150
             findingsTableView.addTableColumn(column)
         }
@@ -285,15 +306,15 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
     private func render(state: AppViewState) {
         topStatusLabel.stringValue = state.statusMessage
         countsLabel.stringValue = state.failedRepositories.isEmpty
-            ? "repos \(state.repositories.count) • findings \(state.findings.count)"
-            : "repos \(state.repositories.count) • findings \(state.findings.count) • failed \(state.failedRepositories.count)"
+            ? "저장소 \(state.repositories.count)개 • 결과 \(state.findings.count)건"
+            : "저장소 \(state.repositories.count)개 • 결과 \(state.findings.count)건 • 실패 \(state.failedRepositories.count)개"
         repoCountLabel.stringValue = state.repositories.isEmpty
-            ? "No repositories loaded."
-            : "Loaded \(state.repositories.count) repositories."
+            ? "아직 조회된 저장소가 없습니다."
+            : "저장소 \(state.repositories.count)개를 불러왔습니다."
         sidebarStatusLabel.stringValue = state.isScanning
-            ? "Scanning local clones with Gitleaks and TruffleHog."
-            : "Gitleaks and TruffleHog must be installed locally."
-        rawReportTextView.string = state.rawReportText.isEmpty ? "No raw reports yet." : state.rawReportText
+            ? "로컬 clone을 Gitleaks와 TruffleHog로 검사하는 중입니다."
+            : "Gitleaks와 TruffleHog가 로컬에 설치되어 있어야 합니다."
+        rawReportTextView.string = state.rawReportText.isEmpty ? "아직 원본 리포트가 없습니다." : state.rawReportText
         errorLabel.stringValue = state.errorMessage ?? ""
         errorLabel.isHidden = state.errorMessage == nil
 

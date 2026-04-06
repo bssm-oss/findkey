@@ -23,9 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         let windowController = MainWindowController(appController: appController)
-        windowController.showWindow(self)
-        windowController.window?.makeKeyAndOrderFront(self)
         NSApp.activate(ignoringOtherApps: true)
+        windowController.showWindow(self)
+        windowController.window?.orderFrontRegardless()
+        windowController.window?.makeKeyAndOrderFront(self)
 
         mainWindowController = windowController
     }
