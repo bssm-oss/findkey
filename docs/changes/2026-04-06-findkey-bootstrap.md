@@ -17,6 +17,7 @@ Create a maintainable Swift/AppKit application that resolves GitHub organization
 - Added an internal contract-test mode because standard Swift test frameworks are unavailable in the current CLI environment.
 - Added packaging scripts for unsigned `.app` and `.dmg` creation.
 - Added CI for build validation, DMG validation, and release publishing.
+- Added a repository-local Homebrew Cask backed by the latest GitHub Release DMG alias.
 
 ## Design Decisions
 
