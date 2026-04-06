@@ -104,6 +104,18 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         title.font = Theme.font(size: 20, weight: .bold)
         title.textColor = Theme.textPrimary
 
+        let brandRow = NSStackView()
+        brandRow.orientation = .horizontal
+        brandRow.alignment = .centerY
+        brandRow.spacing = 12
+
+        let logoView = LogoMarkView()
+        logoView.translatesAutoresizingMaskIntoConstraints = false
+        logoView.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        logoView.heightAnchor.constraint(equalToConstant: 40).isActive = true
+        brandRow.addArrangedSubview(logoView)
+        brandRow.addArrangedSubview(title)
+
         let subtitle = LabelFactory.body("Resolve a GitHub organization or user URL, then scan each repository with Gitleaks and TruffleHog.")
 
         githubURLField.placeholderString = "https://github.com/orgs/bssm-oss/repositories"
@@ -138,7 +150,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         repoScrollView.translatesAutoresizingMaskIntoConstraints = false
         repoScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 260).isActive = true
 
-        stack.addArrangedSubview(title)
+        stack.addArrangedSubview(brandRow)
         stack.addArrangedSubview(subtitle)
         stack.addArrangedSubview(LabelFactory.section("Target"))
         stack.addArrangedSubview(githubURLField)
