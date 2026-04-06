@@ -19,6 +19,7 @@ GitHub organizations and personal accounts often accumulate many repositories ov
   - `trufflehog git --json --no-verification`
 - Merges findings into one AppKit UI and exposes raw scanner output.
 - Builds an unsigned `.app` and `.dmg` from CI for tagged releases.
+- Includes a Homebrew Cask so the app can be installed with `brew install --cask` from this repository.
 - Includes a built-in contract-test mode that validates URL parsing, repository enumeration, and parser behavior in environments where XCTest is unavailable.
 
 ## Technology Stack
@@ -85,6 +86,29 @@ bash scripts/build-dmg.sh 0.1.0
 Output:
 
 - `dist/FindKey-0.1.0.dmg`
+- `dist/FindKey.dmg`
+
+## Homebrew Installation
+
+### Install from the local repository checkout
+
+```bash
+brew tap bssm-oss/findkey "$(pwd)"
+brew install --cask bssm-oss/findkey/findkey
+```
+
+### Install from this repository as a tap
+
+After the repository has a usable default branch and published releases:
+
+```bash
+brew tap bssm-oss/findkey https://github.com/bssm-oss/findkey
+brew install --cask bssm-oss/findkey/findkey
+```
+
+The cask resolves the latest GitHub Release asset at:
+
+- `https://github.com/bssm-oss/findkey/releases/latest/download/FindKey.dmg`
 
 ## GitHub Token Behavior
 
@@ -150,12 +174,13 @@ More detail is documented in `docs/architecture/findkey-architecture.md`.
 - `release.yml`
   - Triggers on version tags like `v0.1.0`
   - Runs build + contract tests
-  - Produces an unsigned `.dmg`
-  - Uploads the `.dmg` to the GitHub Release
+  - Produces an unsigned versioned `.dmg` plus a stable `FindKey.dmg` alias
+  - Uploads both `.dmg` files to the GitHub Release
 
 ## Known Limitations
 
 - Releases are **unsigned** and **not notarized**. Gatekeeper warnings are expected until Apple signing credentials are added.
+- Homebrew installation uses a Cask backed by the latest GitHub Release DMG, so it depends on release assets being published successfully.
 - TruffleHog runs in `--no-verification` mode to avoid active credential verification side effects.
 - The app currently scans repository git history/content only. It does not scan issues, PR comments, deleted commit discovery, or wiki/discussion surfaces.
 - The built-in contract tests validate core logic, not live end-to-end scanner execution against real repositories.
