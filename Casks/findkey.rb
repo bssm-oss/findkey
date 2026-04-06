@@ -8,6 +8,11 @@ cask "findkey" do
   desc "GitHub repository secret scanner for macOS"
   homepage "https://github.com/bssm-oss/findkey"
 
+  depends_on formula: [
+    "gitleaks",
+    "trufflehog",
+  ]
+
   app "FindKey.app"
 
   caveats do
