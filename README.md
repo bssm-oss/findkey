@@ -27,7 +27,7 @@ FindKey는 **GitHub 조직/사용자 저장소를 한 번에 조회하고, Gitle
 
 ## 기술 스택
 
-- Swift 6.2
+- Swift 6.1+
 - AppKit
 - Swift Package Manager
 - GitHub Actions
