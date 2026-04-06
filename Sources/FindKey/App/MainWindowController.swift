@@ -13,17 +13,12 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
     private let tokenField = NSSecureTextField(string: "")
     private let enumerateButton = NSButton(title: "저장소 조회", target: nil, action: nil)
     private let scanButton = NSButton(title: "스캔 시작", target: nil, action: nil)
-    private let repoCountLabel = LabelFactory.body("아직 조회된 저장소가 없습니다.")
-    private let sidebarStatusLabel = LabelFactory.body("Gitleaks와 TruffleHog가 로컬에 설치되어 있어야 합니다.")
-
-    private let topStatusLabel = NSTextField(labelWithString: "GitHub 저장소 목록 URL을 입력해 시작하세요.")
-    private let countsLabel = NSTextField(labelWithString: "저장소 0개 • 결과 0건")
+    private let statusLineLabel = NSTextField(labelWithString: "GitHub 저장소 목록 URL을 입력해 시작하세요.")
     private let progressIndicator = NSProgressIndicator()
     private let errorLabel = NSTextField(labelWithString: "")
 
-    private let repositoryTableView = NSTableView()
     private let findingsTableView = NSTableView()
-    private let resultsSegmentedControl = NSSegmentedControl(labels: ["결과", "원본 리포트"], trackingMode: .selectOne, target: nil, action: nil)
+    private let resultsSegmentedControl = NSSegmentedControl(labels: ["결과", "원본"], trackingMode: .selectOne, target: nil, action: nil)
     private let findingsContainer = NSScrollView()
     private let rawReportContainer = NSScrollView()
     private let rawReportTextView = NSTextView()
@@ -34,7 +29,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         self.appController = appController
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1260, height: 840),
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 620),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -44,6 +39,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         window.titlebarAppearsTransparent = true
         window.backgroundColor = Theme.background
         window.isOpaque = true
+        window.minSize = NSSize(width: 660, height: 520)
 
         rootContentView.fillColor = Theme.background
         rootContentView.translatesAutoresizingMaskIntoConstraints = false
@@ -72,174 +68,121 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
     private func ensureInterfaceBuilt() {
         guard !hasBuiltInterface else { return }
         buildInterface()
+        window?.initialFirstResponder = githubURLField
+        window?.makeFirstResponder(githubURLField)
     }
 
     private func buildInterface() {
         hasBuiltInterface = true
 
-        let splitView = NSSplitView()
-        splitView.isVertical = true
-        splitView.dividerStyle = .thin
-        splitView.translatesAutoresizingMaskIntoConstraints = false
-        splitView.wantsLayer = true
-
-        let sidebar = buildSidebar()
-        let mainPane = buildMainPane()
-
-        splitView.addArrangedSubview(sidebar)
-        splitView.addArrangedSubview(mainPane)
-        splitView.setHoldingPriority(.defaultHigh, forSubviewAt: 0)
-        splitView.setPosition(320, ofDividerAt: 0)
-
-        rootContentView.addSubview(splitView)
-
-        NSLayoutConstraint.activate([
-            splitView.leadingAnchor.constraint(equalTo: rootContentView.leadingAnchor),
-            splitView.trailingAnchor.constraint(equalTo: rootContentView.trailingAnchor),
-            splitView.topAnchor.constraint(equalTo: rootContentView.topAnchor),
-            splitView.bottomAnchor.constraint(equalTo: rootContentView.bottomAnchor),
-            sidebar.widthAnchor.constraint(equalToConstant: 320),
-        ])
-    }
-
-    private func buildSidebar() -> NSView {
-        let sidebar = ThemedContainerView()
-        sidebar.fillColor = Theme.background
-        sidebar.strokeColor = Theme.subtleBorder
-        sidebar.translatesAutoresizingMaskIntoConstraints = false
-
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.spacing = 16
-        stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
+        stack.spacing = 12
+        stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
         stack.translatesAutoresizingMaskIntoConstraints = false
 
-        let title = NSTextField(labelWithString: "FindKey")
-        title.font = Theme.font(size: 20, weight: .bold)
-        title.textColor = Theme.textPrimary
+        stack.addArrangedSubview(buildControlPane())
+        stack.addArrangedSubview(buildResultsPane())
 
-        let brandRow = NSStackView()
-        brandRow.orientation = .horizontal
-        brandRow.alignment = .centerY
-        brandRow.spacing = 12
-
-        let logoView = LogoMarkView()
-        logoView.translatesAutoresizingMaskIntoConstraints = false
-        logoView.widthAnchor.constraint(equalToConstant: 40).isActive = true
-        logoView.heightAnchor.constraint(equalToConstant: 40).isActive = true
-        brandRow.addArrangedSubview(logoView)
-        brandRow.addArrangedSubview(title)
-
-        let subtitle = LabelFactory.body("GitHub 조직 또는 사용자 저장소 URL을 입력한 뒤, 각 저장소를 Gitleaks와 TruffleHog로 검사합니다.")
-
-        githubURLField.placeholderString = "https://github.com/orgs/bssm-oss/repositories"
-        githubURLField.font = Theme.font(size: 13)
-        githubURLField.focusRingType = .none
-
-        tokenField.placeholderString = "ghp_... (선택 사항)"
-        tokenField.font = Theme.font(size: 13)
-        tokenField.focusRingType = .none
-
-        configure(button: enumerateButton, primary: false, action: #selector(didTapResolve))
-        configure(button: scanButton, primary: true, action: #selector(didTapScan))
-
-        repositoryTableView.headerView = nil
-        repositoryTableView.usesAlternatingRowBackgroundColors = false
-        repositoryTableView.backgroundColor = Theme.surface
-        repositoryTableView.selectionHighlightStyle = .regular
-        repositoryTableView.rowHeight = 30
-        repositoryTableView.delegate = self
-        repositoryTableView.dataSource = self
-
-        let repoColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("repository"))
-        repoColumn.title = "저장소"
-        repoColumn.width = 240
-        repositoryTableView.addTableColumn(repoColumn)
-
-        let repoScrollView = NSScrollView()
-        repoScrollView.borderType = .noBorder
-        repoScrollView.drawsBackground = false
-        repoScrollView.documentView = repositoryTableView
-        repoScrollView.hasVerticalScroller = true
-        repoScrollView.translatesAutoresizingMaskIntoConstraints = false
-        repoScrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 260).isActive = true
-
-        stack.addArrangedSubview(brandRow)
-        stack.addArrangedSubview(subtitle)
-        stack.addArrangedSubview(LabelFactory.section("대상 URL"))
-        stack.addArrangedSubview(githubURLField)
-        stack.addArrangedSubview(LabelFactory.section("접근 토큰 (선택 사항)"))
-        stack.addArrangedSubview(tokenField)
-        stack.addArrangedSubview(enumerateButton)
-        stack.addArrangedSubview(scanButton)
-        stack.addArrangedSubview(repoCountLabel)
-        stack.addArrangedSubview(sidebarStatusLabel)
-        stack.addArrangedSubview(LabelFactory.section("조회된 저장소"))
-        stack.addArrangedSubview(repoScrollView)
-
-        sidebar.addSubview(stack)
+        rootContentView.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: sidebar.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: sidebar.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: sidebar.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: sidebar.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: rootContentView.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: rootContentView.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: rootContentView.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: rootContentView.bottomAnchor),
         ])
-
-        return sidebar
     }
 
-    private func buildMainPane() -> NSView {
+    private func buildControlPane() -> NSView {
         let container = ThemedContainerView()
-        container.fillColor = Theme.background
+        container.fillColor = Theme.surface
+        container.strokeColor = Theme.subtleBorder
         container.translatesAutoresizingMaskIntoConstraints = false
 
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.spacing = 16
-        stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
+        stack.spacing = 8
+        stack.edgeInsets = NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14)
         stack.translatesAutoresizingMaskIntoConstraints = false
 
-        topStatusLabel.font = Theme.font(size: 13, weight: .medium)
-        topStatusLabel.textColor = Theme.textPrimary
+        configureInputField(githubURLField, placeholder: "GitHub 저장소 목록 URL")
+        configureInputField(tokenField, placeholder: "GitHub 토큰 (선택)")
 
-        countsLabel.font = Theme.font(size: 12)
-        countsLabel.textColor = Theme.textSecondary
+        configure(button: enumerateButton, primary: false, action: #selector(didTapResolve))
+        configure(button: scanButton, primary: true, action: #selector(didTapScan))
+
+        statusLineLabel.font = Theme.font(size: 12, weight: .medium)
+        statusLineLabel.textColor = Theme.textPrimary
+        statusLineLabel.lineBreakMode = .byTruncatingTail
 
         progressIndicator.isIndeterminate = false
         progressIndicator.minValue = 0
         progressIndicator.maxValue = 1
         progressIndicator.controlTint = .blueControlTint
+        progressIndicator.translatesAutoresizingMaskIntoConstraints = false
+        progressIndicator.heightAnchor.constraint(equalToConstant: 10).isActive = true
 
-        errorLabel.font = Theme.font(size: 12)
+        errorLabel.font = Theme.font(size: 11)
         errorLabel.textColor = Theme.danger
         errorLabel.lineBreakMode = .byWordWrapping
         errorLabel.maximumNumberOfLines = 2
 
-        let statusGrid = NSGridView(views: [[topStatusLabel, countsLabel]])
-        statusGrid.xPlacement = .fill
+        let buttonRow = NSStackView()
+        buttonRow.orientation = .horizontal
+        buttonRow.spacing = 8
+        buttonRow.distribution = .fillEqually
+        buttonRow.addArrangedSubview(enumerateButton)
+        buttonRow.addArrangedSubview(scanButton)
 
-        let headerRow = NSStackView()
-        headerRow.orientation = .horizontal
-        headerRow.spacing = 12
-        headerRow.alignment = .centerY
+        stack.addArrangedSubview(githubURLField)
+        stack.addArrangedSubview(tokenField)
+        stack.addArrangedSubview(buttonRow)
+        stack.addArrangedSubview(statusLineLabel)
+        stack.addArrangedSubview(progressIndicator)
+        stack.addArrangedSubview(errorLabel)
 
-        let title = NSTextField(labelWithString: "스캔 결과")
-        title.font = Theme.font(size: 16, weight: .bold)
-        title.textColor = Theme.textPrimary
+        container.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: container.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+        ])
+
+        return container
+    }
+
+    private func buildResultsPane() -> NSView {
+        let container = ThemedContainerView()
+        container.fillColor = Theme.surface
+        container.strokeColor = Theme.subtleBorder
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.spacing = 8
+        stack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        stack.translatesAutoresizingMaskIntoConstraints = false
 
         resultsSegmentedControl.selectedSegment = ResultTab.findings.rawValue
         resultsSegmentedControl.target = self
         resultsSegmentedControl.action = #selector(didChangeResultTab)
+        resultsSegmentedControl.segmentStyle = .separated
 
-        headerRow.addArrangedSubview(title)
+        let headerRow = NSStackView()
+        headerRow.orientation = .horizontal
+        headerRow.spacing = 8
+        headerRow.alignment = .centerY
+
         headerRow.addArrangedSubview(NSView())
         headerRow.addArrangedSubview(resultsSegmentedControl)
 
         findingsTableView.headerView = nil
         findingsTableView.backgroundColor = Theme.surface
         findingsTableView.usesAlternatingRowBackgroundColors = false
-        findingsTableView.rowHeight = 30
+        findingsTableView.rowHeight = 24
         findingsTableView.delegate = self
         findingsTableView.dataSource = self
 
@@ -253,7 +196,14 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
             case "status": "상태"
             default: identifier.capitalized
             }
-            column.width = identifier == "detector" ? 250 : 150
+            column.width = switch identifier {
+            case "repository": 150
+            case "tool": 70
+            case "detector": 150
+            case "path": 220
+            case "status": 70
+            default: 120
+            }
             findingsTableView.addTableColumn(column)
         }
 
@@ -261,24 +211,25 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         findingsContainer.hasVerticalScroller = true
         findingsContainer.drawsBackground = false
         findingsContainer.translatesAutoresizingMaskIntoConstraints = false
+        findingsContainer.borderType = .noBorder
 
         rawReportTextView.isEditable = false
+        rawReportTextView.isSelectable = true
         rawReportTextView.font = Theme.font(size: 12)
         rawReportTextView.backgroundColor = Theme.surface
         rawReportTextView.textColor = Theme.textPrimary
+        rawReportTextView.textContainerInset = NSSize(width: 4, height: 6)
         rawReportContainer.documentView = rawReportTextView
         rawReportContainer.hasVerticalScroller = true
         rawReportContainer.drawsBackground = false
         rawReportContainer.translatesAutoresizingMaskIntoConstraints = false
+        rawReportContainer.borderType = .noBorder
         rawReportContainer.isHidden = true
 
         let contentStack = NSStackView(views: [findingsContainer, rawReportContainer])
         contentStack.orientation = .vertical
         contentStack.translatesAutoresizingMaskIntoConstraints = false
 
-        stack.addArrangedSubview(statusGrid)
-        stack.addArrangedSubview(progressIndicator)
-        stack.addArrangedSubview(errorLabel)
         stack.addArrangedSubview(headerRow)
         stack.addArrangedSubview(contentStack)
 
@@ -289,7 +240,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
             stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             stack.topAnchor.constraint(equalTo: container.topAnchor),
             stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            contentStack.heightAnchor.constraint(greaterThanOrEqualToConstant: 540),
+            contentStack.heightAnchor.constraint(greaterThanOrEqualToConstant: 300),
         ])
 
         return container
@@ -298,22 +249,38 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
     private func configure(button: NSButton, primary: Bool, action: Selector) {
         button.target = self
         button.action = action
-        button.font = Theme.font(size: 13, weight: .medium)
-        button.bezelStyle = .rounded
-        button.contentTintColor = primary ? Theme.textPrimary : Theme.textSecondary
+        button.font = Theme.font(size: 12, weight: .medium)
+        button.bezelStyle = .regularSquare
+        button.isBordered = true
+        button.wantsLayer = true
+        button.contentTintColor = Theme.textPrimary
+        button.layer?.cornerRadius = 4
+        button.layer?.borderWidth = 1
+        button.layer?.borderColor = Theme.subtleBorder.cgColor
+        button.layer?.backgroundColor = (primary ? Theme.background : Theme.surface).cgColor
+        button.heightAnchor.constraint(equalToConstant: 30).isActive = true
+    }
+
+    private func configureInputField(_ field: NSTextField, placeholder: String) {
+        field.font = Theme.font(size: 12)
+        field.textColor = Theme.textPrimary
+        field.focusRingType = .none
+        field.isEditable = true
+        field.isSelectable = true
+        field.isBordered = false
+        field.drawsBackground = true
+        field.backgroundColor = Theme.background
+        field.wantsLayer = true
+        field.layer?.cornerRadius = 4
+        field.layer?.borderWidth = 1
+        field.layer?.borderColor = Theme.subtleBorder.cgColor
+        field.translatesAutoresizingMaskIntoConstraints = false
+        field.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        field.placeholderString = placeholder
     }
 
     private func render(state: AppViewState) {
-        topStatusLabel.stringValue = state.statusMessage
-        countsLabel.stringValue = state.failedRepositories.isEmpty
-            ? "저장소 \(state.repositories.count)개 • 결과 \(state.findings.count)건"
-            : "저장소 \(state.repositories.count)개 • 결과 \(state.findings.count)건 • 실패 \(state.failedRepositories.count)개"
-        repoCountLabel.stringValue = state.repositories.isEmpty
-            ? "아직 조회된 저장소가 없습니다."
-            : "저장소 \(state.repositories.count)개를 불러왔습니다."
-        sidebarStatusLabel.stringValue = state.isScanning
-            ? "로컬 clone을 Gitleaks와 TruffleHog로 검사하는 중입니다."
-            : "Gitleaks와 TruffleHog가 로컬에 설치되어 있어야 합니다."
+        statusLineLabel.stringValue = statusText(for: state)
         rawReportTextView.string = state.rawReportText.isEmpty ? "아직 원본 리포트가 없습니다." : state.rawReportText
         errorLabel.stringValue = state.errorMessage ?? ""
         errorLabel.isHidden = state.errorMessage == nil
@@ -337,8 +304,15 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
             progressIndicator.doubleValue = state.progress
         }
 
-        repositoryTableView.reloadData()
         findingsTableView.reloadData()
+    }
+
+    private func statusText(for state: AppViewState) -> String {
+        let counts = state.failedRepositories.isEmpty
+            ? "저장소 \(state.repositories.count) • 결과 \(state.findings.count)"
+            : "저장소 \(state.repositories.count) • 결과 \(state.findings.count) • 실패 \(state.failedRepositories.count)"
+
+        return "\(counts) — \(state.statusMessage)"
     }
 
     @objc
@@ -359,35 +333,24 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        if tableView == repositoryTableView {
-            return appController.state.repositories.count
-        }
-
         return appController.state.findings.count
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let identifier = tableColumn?.identifier.rawValue ?? "cell"
-        let value: String
-
-        if tableView == repositoryTableView {
-            let repository = appController.state.repositories[row]
-            value = repository.fullName
-        } else {
-            let finding = appController.state.findings[row]
-            switch identifier {
-            case "repository": value = finding.repository
-            case "tool": value = finding.tool.rawValue
-            case "detector": value = finding.detector
-            case "path": value = finding.pathWithLine
-            case "status": value = finding.status.rawValue
-            default: value = finding.preview
-            }
+        let finding = appController.state.findings[row]
+        let value: String = switch identifier {
+        case "repository": finding.repository
+        case "tool": finding.tool.rawValue
+        case "detector": finding.detector
+        case "path": finding.pathWithLine
+        case "status": finding.status.rawValue
+        default: finding.preview
         }
 
         let cell = NSTableCellView()
         let textField = NSTextField(labelWithString: value)
-        textField.font = Theme.font(size: 12)
+        textField.font = Theme.font(size: 11)
         textField.textColor = Theme.textPrimary
         textField.lineBreakMode = .byTruncatingMiddle
         textField.translatesAutoresizingMaskIntoConstraints = false
