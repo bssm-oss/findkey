@@ -30,15 +30,14 @@ struct TruffleHogRunner: Sendable {
         )
 
         let output = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sanitizedOutput = sanitize(rawOutput: output)
-        try sanitizedOutput.write(to: reportURL, atomically: true, encoding: .utf8)
+        try output.write(to: reportURL, atomically: true, encoding: .utf8)
 
-        let findings = try parser.parse(output: sanitizedOutput, repository: repository.fullName, rawReportURL: reportURL)
+        let findings = try parser.parse(output: output, repository: repository.fullName, rawReportURL: reportURL)
         let rawReport = RawReport(
             repository: repository.fullName,
             tool: .truffleHog,
             url: reportURL,
-            contents: sanitizedOutput
+            contents: output
         )
 
         return (findings, rawReport)
@@ -46,36 +45,6 @@ struct TruffleHogRunner: Sendable {
 
     private func reportFileStem(for repository: RepositoryRecord) -> String {
         repository.fullName.replacingOccurrences(of: "/", with: "__")
-    }
-
-    private func sanitize(rawOutput: String) -> String {
-        guard !rawOutput.isEmpty else { return rawOutput }
-
-        return rawOutput
-            .split(whereSeparator: \.isNewline)
-            .map { line in
-                guard line.first == "{" else { return String(line) }
-                guard let data = line.data(using: .utf8),
-                      var object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                else {
-                    return String(line)
-                }
-
-                if let redacted = object["Redacted"] as? String, !redacted.isEmpty {
-                    object["Raw"] = redacted
-                } else if object["Raw"] != nil {
-                    object["Raw"] = "[REDACTED]"
-                }
-
-                guard let sanitizedData = try? JSONSerialization.data(withJSONObject: object),
-                      let sanitizedLine = String(data: sanitizedData, encoding: .utf8)
-                else {
-                    return String(line)
-                }
-
-                return sanitizedLine
-            }
-            .joined(separator: "\n")
     }
 }
 
@@ -91,7 +60,7 @@ struct TruffleHogEventParser: Sendable {
                 let event = try decoder.decode(TruffleHogFindingPayload.self, from: Data(line.utf8))
                 let path = event.sourceMetadata?.data?.git?.file ?? "unknown"
                 let repositoryName = event.sourceMetadata?.data?.git?.repository ?? repository
-                let preview = event.redacted ?? "Credential candidate detected by TruffleHog."
+                let preview = event.raw ?? event.redacted ?? "Credential candidate detected by TruffleHog."
                 let status: ScanFindingStatus = if event.verified == true {
                     .verified
                 } else if event.verified == false {
@@ -108,6 +77,7 @@ struct TruffleHogEventParser: Sendable {
                     line: event.sourceMetadata?.data?.git?.line,
                     status: status,
                     preview: preview,
+                    detail: event.raw ?? event.redacted ?? "Credential candidate detected by TruffleHog.",
                     rawReportURL: rawReportURL
                 )
             }
