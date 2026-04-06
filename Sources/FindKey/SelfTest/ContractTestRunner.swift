@@ -40,9 +40,29 @@ struct ContractTestRunner: Sendable {
         )
         try assert(trufflehogFindings.first?.status == .verified, "parses trufflehog ndjson findings")
 
+        try await MainActor.run {
+            try assertAppMenuSupportsCopyPaste()
+        }
         try await assertMainWindowBootstrapsVisibleUI()
 
-        print("Self-test succeeded: 8 assertions passed.")
+        print("Self-test succeeded: 9 assertions passed.")
+    }
+
+    @MainActor
+    private func assertAppMenuSupportsCopyPaste() throws {
+        let delegate = AppDelegate()
+        let menu = delegate.makeMainMenu()
+        let submenuTitles = menu.items.compactMap { $0.submenu?.title }
+        try assert(submenuTitles.contains("편집"), "creates Edit menu for copy paste")
+
+        let editItems = menu.items
+            .compactMap { $0.submenu }
+            .first { $0.title == "편집" }?
+            .items
+            .map(\.title) ?? []
+
+        try assert(editItems.contains("복사"), "includes copy action in Edit menu")
+        try assert(editItems.contains("붙여넣기"), "includes paste action in Edit menu")
     }
 
     @MainActor
@@ -60,10 +80,10 @@ struct ContractTestRunner: Sendable {
         let contentSubviews = window.contentView?.subviews ?? []
         try assert(contentSubviews.isEmpty == false, "bootstraps visible main window UI")
         try assert(windowController.hasBuiltInterface, "builds interface without relying on windowDidLoad")
-        try assert(contentSubviews.first is NSSplitView, "attaches split view to the main window")
+        try assert(contentSubviews.first is NSStackView, "attaches compact root stack to the main window")
         let labels = collectLabels(in: contentSubviews)
-        try assert(labels.contains("GitHub 저장소 목록 URL을 입력해 시작하세요."), "shows Korean default status text")
-        try assert(labels.contains("스캔 결과"), "shows Korean results header")
+        try assert(labels.contains("저장소 조회"), "shows compact Korean action labels")
+        try assert(labels.contains(where: { $0.contains("저장소 0") && $0.contains("결과 0") }), "shows compact Korean status summary")
     }
 
     private func assert(_ condition: @autoclosure () throws -> Bool, _ message: String) throws {
@@ -100,6 +120,10 @@ struct ContractTestRunner: Sendable {
         for view in views {
             if let label = view as? NSTextField, !label.stringValue.isEmpty {
                 labels.append(label.stringValue)
+            }
+
+            if let button = view as? NSButton, !button.title.isEmpty {
+                labels.append(button.title)
             }
 
             labels.append(contentsOf: collectLabels(in: view.subviews))
