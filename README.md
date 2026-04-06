@@ -63,7 +63,7 @@ swift run FindKey -- --self-test
 
 ## 패키징
 
-### unsigned `.app` 생성
+### ad-hoc signed `.app` 생성
 
 ```bash
 bash scripts/build-app.sh 0.1.0
@@ -84,7 +84,7 @@ bash scripts/build-dmg.sh 0.1.0
 - `dist/FindKey-0.1.0.dmg`
 - `dist/FindKey.dmg`
 
-`FindKey.dmg`는 Homebrew Cask가 `releases/latest/download/FindKey.dmg` 경로로 접근할 수 있도록 유지되는 stable alias입니다.
+`FindKey.dmg`는 Homebrew Cask가 `releases/latest/download/FindKey.dmg` 경로로 접근할 수 있도록 유지되는 stable alias입니다. 앱 번들은 Developer ID 서명이 아닌 **ad-hoc signing**만 적용된 상태입니다.
 
 ## Homebrew로 설치하기
 
@@ -116,6 +116,8 @@ FindKey Cask는 다음 Homebrew formula를 의존성으로 선언합니다.
 - `trufflehog`
 
 즉, `brew install --cask bssm-oss/findkey/findkey`를 수행하면 FindKey 앱 설치와 함께 두 스캐너도 Homebrew가 알아서 설치합니다.
+
+Homebrew Cask postflight는 설치된 앱의 quarantine attribute 제거를 시도해, 기본 Gatekeeper “손상됨” 경고를 줄이도록 구성되어 있습니다.
 
 ## GitHub 토큰 동작 방식
 
@@ -208,7 +210,7 @@ FindKey Cask는 다음 Homebrew formula를 의존성으로 선언합니다.
 
 ## 알려진 제한 사항
 
-- 릴리즈는 **unsigned / not notarized** 상태입니다.
+- 릴리즈 앱 번들은 **ad-hoc signed / not notarized** 상태입니다.
 - Gatekeeper 경고가 발생할 수 있습니다.
 - TruffleHog는 `--no-verification` 모드로 실행됩니다.
 - 현재는 저장소 git history/content만 검사합니다.

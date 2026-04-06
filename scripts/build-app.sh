@@ -56,4 +56,6 @@ EOF
 
 printf 'APPL????' > "$CONTENTS_DIR/PkgInfo"
 
-echo "Built unsigned app bundle: $APP_DIR"
+codesign --force --deep --sign - "$APP_DIR"
+
+echo "Built ad-hoc signed app bundle: $APP_DIR"
