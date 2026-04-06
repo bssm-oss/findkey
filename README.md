@@ -1,139 +1,145 @@
 # FindKey
 
-FindKey is a macOS AppKit desktop app for scanning GitHub organization and user repositories for exposed credentials with **Gitleaks** and **TruffleHog**. It is designed for defensive internal use: you paste a GitHub repositories URL, the app resolves the repositories, clones them locally into a temporary workspace, runs both scanners, and shows the combined findings in one interface.
+FindKey는 **GitHub 조직/사용자 저장소를 한 번에 조회하고, Gitleaks + TruffleHog로 비밀값 노출 여부를 검사하는 macOS AppKit 데스크탑 앱**입니다. 사용자는 GitHub 저장소 목록 URL을 입력하고, 앱은 저장소를 자동으로 나열한 뒤 각 저장소를 임시 워크스페이스에 clone하여 스캔 결과를 한 화면에서 보여줍니다.
 
-## Problem
+## 어떤 문제를 해결하나요?
 
-GitHub organizations and personal accounts often accumulate many repositories over time, which makes manual secret-scanning repetitive and easy to skip. FindKey turns that into one repeatable macOS workflow for checking whether API keys, tokens, or other credentials have leaked into repository history.
+조직이나 개인 계정에 저장소가 많아질수록, API 키나 토큰이 커밋 히스토리에 섞여 들어갔는지 수동으로 점검하기가 어려워집니다. FindKey는 이 작업을 macOS 데스크탑 앱 워크플로우로 묶어서, 방어적 목적의 반복 점검을 더 쉽게 수행하도록 돕습니다.
 
-## Core Features
+## 핵심 기능
 
-- Accepts GitHub org and user repository URLs such as:
+- 다음과 같은 GitHub URL 입력 지원
   - `https://github.com/orgs/bssm-oss/repositories`
   - `https://github.com/heodongun?tab=repositories`
   - `https://github.com/<owner>`
-- Uses the GitHub REST API to enumerate repositories.
-- Supports an optional GitHub token to improve rate limits and access protected repositories.
-- Clones repositories into a temporary workspace and scans them with:
+- GitHub REST API를 사용한 저장소 목록 조회
+- 선택적 GitHub 토큰 지원
+  - rate limit 완화
+  - private repository 접근 보조
+- 각 저장소를 임시 디렉터리에 clone 후 다음 도구로 검사
   - `gitleaks git`
   - `trufflehog git --json --no-verification`
-- Merges findings into one AppKit UI and exposes raw scanner output.
-- Builds an unsigned `.app` and `.dmg` from CI for tagged releases.
-- Includes a Homebrew Cask so the app can be installed with `brew install --cask` from this repository.
-- Includes a built-in contract-test mode that validates URL parsing, repository enumeration, and parser behavior in environments where XCTest is unavailable.
+- findings 표와 raw report 뷰를 함께 제공하는 AppKit UI
+- 태그 푸시 시 unsigned `.dmg`를 GitHub Release에 업로드하는 워크플로우
+- Homebrew Cask 제공
+  - FindKey 설치 시 `gitleaks`, `trufflehog`도 Homebrew 의존성으로 함께 설치되도록 구성
+- 내장 contract test 모드 제공
 
-## Technology Stack
+## 기술 스택
 
 - Swift 6.2
 - AppKit
 - Swift Package Manager
 - GitHub Actions
-- External scanners: Gitleaks, TruffleHog
+- Homebrew Cask
 
-## Requirements
+## 요구 사항
 
 - macOS 13+
-- Xcode Command Line Tools or Xcode 15+
-- `gitleaks` installed locally
-- `trufflehog` installed locally
+- Xcode Command Line Tools 또는 Xcode 15+
+- Homebrew
 
-Recommended installation:
+## 로컬 개발
 
-```bash
-brew install gitleaks trufflehog
-```
-
-## Local Development
-
-### Build
+### 빌드
 
 ```bash
 swift build
 ```
 
-### Run the App
+### 앱 실행
 
 ```bash
 swift run FindKey
 ```
 
-### Run Contract Tests
+### Contract Test 실행
 
 ```bash
 swift run FindKey -- --self-test
 ```
 
-This command exercises the non-UI logic that is safe to validate without live GitHub/network dependencies.
+이 테스트는 UI 자동화가 아니라, URL 파싱 / GitHub owner resolution / finding parser 동작 같은 핵심 로직을 반복 가능하게 검증합니다.
 
-## Packaging
+## 패키징
 
-### Build an unsigned `.app`
+### unsigned `.app` 생성
 
 ```bash
 bash scripts/build-app.sh 0.1.0
 ```
 
-Output:
+생성 결과:
 
 - `dist/FindKey.app`
 
-### Build an unsigned `.dmg`
+### unsigned `.dmg` 생성
 
 ```bash
 bash scripts/build-dmg.sh 0.1.0
 ```
 
-Output:
+생성 결과:
 
 - `dist/FindKey-0.1.0.dmg`
 - `dist/FindKey.dmg`
 
-## Homebrew Installation
+`FindKey.dmg`는 Homebrew Cask가 `releases/latest/download/FindKey.dmg` 경로로 접근할 수 있도록 유지되는 stable alias입니다.
 
-### Validate the cask from the local repository checkout
+## Homebrew로 설치하기
+
+### 이 저장소를 로컬 tap으로 검증하기
 
 ```bash
 brew tap bssm-oss/findkey "$(pwd)"
 brew info --cask bssm-oss/findkey/findkey
 ```
 
-### Install from this repository as a tap
+이 경로는 **cask 메타데이터와 tap 구성이 올바른지 확인하는 용도**입니다.
 
-After the repository has a usable default branch and at least one published release:
+### GitHub Release가 존재할 때 실제 설치하기
 
 ```bash
 brew tap bssm-oss/findkey https://github.com/bssm-oss/findkey
 brew install --cask bssm-oss/findkey/findkey
 ```
 
-The cask resolves the latest GitHub Release asset at:
+이 설치 경로는 다음을 전제로 합니다.
 
-- `https://github.com/bssm-oss/findkey/releases/latest/download/FindKey.dmg`
+1. 저장소에 usable default branch가 있어야 함
+2. 첫 tagged release가 생성되어 있어야 함
+3. release asset으로 `FindKey.dmg`가 게시되어 있어야 함
 
-That URL does not exist until the first tagged release has been published.
+FindKey Cask는 다음 Homebrew formula를 의존성으로 선언합니다.
 
-## GitHub Token Behavior
+- `gitleaks`
+- `trufflehog`
 
-- The token field is optional.
-- The app uses the token for GitHub API requests.
-- When a token is present, repository cloning uses temporary git environment configuration for the HTTP authorization header instead of embedding the token into the clone URL or persisting it on disk.
-- The app does **not** persist the token to disk.
+즉, `brew install --cask bssm-oss/findkey/findkey`를 수행하면 FindKey 앱 설치와 함께 두 스캐너도 Homebrew가 알아서 설치합니다.
 
-## How Scanning Works
+## GitHub 토큰 동작 방식
 
-1. Parse the GitHub URL into an organization, user, or owner lookup.
-2. Enumerate repositories through the GitHub REST API.
-3. Clone each repository into a temporary workspace.
-4. Run Gitleaks and TruffleHog against the local clone.
-5. Normalize the findings into one table.
-6. Surface sanitized JSON/NDJSON scanner output in the raw report pane.
-7. Clean up the temporary workspace when the scan completes.
+- 토큰 입력은 선택 사항입니다.
+- GitHub API 요청에 사용됩니다.
+- clone 시에는 URL에 토큰을 박아 넣지 않고, 임시 git environment config로 Authorization 헤더를 주입합니다.
+- 토큰은 디스크에 저장하지 않습니다.
 
-## Folder Structure
+## 스캔 동작 방식
+
+1. 입력 URL을 organization / user / owner 대상으로 파싱
+2. GitHub REST API로 저장소 목록 조회
+3. 각 저장소를 임시 workspace에 clone
+4. Gitleaks와 TruffleHog 실행
+5. findings를 공통 형식으로 정규화
+6. sanitized raw JSON/NDJSON을 raw report 뷰에 표시
+7. 스캔 종료 후 임시 workspace 삭제 시도
+
+## 폴더 구조
 
 ```text
 .
 ├── .github/workflows/
+├── Casks/
 ├── docs/
 │   ├── architecture/
 │   ├── changes/
@@ -148,56 +154,83 @@ That URL does not exist until the first tagged release has been published.
     └── Shared/
 ```
 
-## Architecture Overview
+## 아키텍처 개요
 
-- **App**: `AppDelegate`, `MainWindowController`, visual theme, and UI state wiring.
-- **Application**: `ScanOrchestrator` coordinates clone → scan → aggregate.
-- **Domain**: repository, target, and finding models.
-- **Infrastructure**: GitHub API client, URL parser, process runner, tool discovery, clone service, scanner runners.
-- **SelfTest**: executable contract-test mode for repeatable non-UI validation.
+- **App**
+  - `AppDelegate`
+  - `MainWindowController`
+  - `AppController`
+  - `Theme`
+  - `LogoMarkView`
+- **Application**
+  - `ScanOrchestrator`
+- **Domain**
+  - `GitHubTarget`
+  - `RepositoryRecord`
+  - `ScanFinding`
+  - `RawReport`
+- **Infrastructure**
+  - `GitHubURLParser`
+  - `GitHubRepositoryService`
+  - `ExternalToolLocator`
+  - `ProcessRunner`
+  - `RepositoryCloneService`
+  - `GitleaksRunner`
+  - `TruffleHogRunner`
+  - `TemporaryWorkspace`
+- **SelfTest**
+  - `ContractTestRunner`
 
-More detail is documented in `docs/architecture/findkey-architecture.md`.
+더 자세한 구조는 `docs/architecture/findkey-architecture.md`에 정리되어 있습니다.
 
-## Development Principles
+## 개발 원칙
 
-- Prefer small, auditable changes over broad refactors.
-- Do not log or persist secrets.
-- Keep raw reports redacted or sanitized where the scanner supports it.
-- Match docs to the real implementation and verification commands.
-- Treat missing tooling or credentials as explicit user-facing errors.
+- 기능 외 범위로 불필요하게 리팩터링하지 않기
+- 비밀값을 로그나 파일에 저장하지 않기
+- 가능한 경우 raw report는 redacted/sanitized 상태로만 보이게 유지하기
+- 문서와 실제 동작을 항상 맞추기
+- 누락된 도구나 자격 증명은 숨기지 않고 명시적으로 오류로 드러내기
 
-## CI Overview
+## CI / Release
 
 - `ci.yml`
-  - Runs `swift build`
-  - Runs the built-in contract tests
-  - Verifies that the unsigned `.app` bundle can be assembled
-  - Verifies that the unsigned `.dmg` can be assembled before PR merge
+  - `swift build`
+  - `swift run FindKey -- --self-test`
+  - unsigned `.app` 생성 검증
+  - unsigned `.dmg` 생성 검증
 - `release.yml`
-  - Triggers on version tags like `v0.1.0`
-  - Runs build + contract tests
-  - Produces an unsigned versioned `.dmg` plus a stable `FindKey.dmg` alias
-  - Uploads both `.dmg` files to the GitHub Release
+  - `v*` 태그 푸시 시 실행
+  - build + self-test 실행
+  - versioned DMG와 stable alias DMG 생성
+  - GitHub Release에 `dist/*.dmg` 업로드
 
-## Known Limitations
+즉, 버전 태그를 올릴 때마다 release asset이 갱신되도록 구성되어 있습니다.
 
-- Releases are **unsigned** and **not notarized**. Gatekeeper warnings are expected until Apple signing credentials are added.
-- Homebrew installation uses a Cask backed by the latest GitHub Release DMG, so it depends on release assets being published successfully.
-- TruffleHog runs in `--no-verification` mode to avoid active credential verification side effects.
-- The app currently scans repository git history/content only. It does not scan issues, PR comments, deleted commit discovery, or wiki/discussion surfaces.
-- The built-in contract tests validate core logic, not live end-to-end scanner execution against real repositories.
+## 알려진 제한 사항
 
-## Roadmap
+- 릴리즈는 **unsigned / not notarized** 상태입니다.
+- Gatekeeper 경고가 발생할 수 있습니다.
+- TruffleHog는 `--no-verification` 모드로 실행됩니다.
+- 현재는 저장소 git history/content만 검사합니다.
+  - issue
+  - PR comment
+  - discussion
+  - wiki
+  - 삭제된 외부 표면
+  등은 검사하지 않습니다.
+- Homebrew 실제 설치는 첫 release asset이 게시된 뒤에만 동작합니다.
 
-- Signed and notarized releases
-- Better export/report persistence controls
-- Optional filtering for archived or forked repositories
-- Richer scan progress metadata
+## 향후 개선 아이디어
 
-## Contributing
+- signed / notarized release
+- richer export/report 관리 기능
+- archived/forked repo 필터링
+- 스캔 진행 상태 정보 강화
 
-1. Create a feature branch.
-2. Run `swift build`.
-3. Run `swift run FindKey -- --self-test`.
-4. Update docs when behavior changes.
-5. Open a pull request with verification evidence.
+## 기여 방법
+
+1. feature branch를 생성합니다.
+2. `swift build`를 실행합니다.
+3. `swift run FindKey -- --self-test`를 실행합니다.
+4. 동작이 바뀌면 문서를 갱신합니다.
+5. 검증 결과를 포함해 PR을 엽니다.
