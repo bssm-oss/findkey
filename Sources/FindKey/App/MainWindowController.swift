@@ -366,7 +366,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
     private func buildFindingDetailWindow(for finding: ScanFinding) -> NSWindow {
         let detailWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 700),
+            contentRect: NSRect(x: 0, y: 0, width: 900, height: 740),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
@@ -388,7 +388,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.alignment = .width
+        stack.alignment = .centerX
         stack.distribution = .fill
         stack.spacing = 16
         stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
@@ -406,6 +406,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         headerRow.addArrangedSubview(titleLabel)
         headerRow.addArrangedSubview(NSView())
         headerRow.addArrangedSubview(closeButton)
+        headerRow.translatesAutoresizingMaskIntoConstraints = false
 
         let summaryContainer = ThemedContainerView()
         summaryContainer.fillColor = Theme.surface
@@ -511,7 +512,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
             finding: finding,
             rawReport: rawReportContents(for: finding)
         )
-        detailBlock.setContentHuggingPriority(.defaultLow, for: .vertical)
+        detailBlock.translatesAutoresizingMaskIntoConstraints = false
 
         stack.addArrangedSubview(headerRow)
         stack.addArrangedSubview(summaryContainer)
@@ -525,6 +526,11 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
             stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             stack.topAnchor.constraint(equalTo: contentView.topAnchor),
             stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+
+            headerRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            summaryContainer.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            metadataContainer.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            detailBlock.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
 
         return detailWindow
@@ -579,7 +585,16 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         titleLabel.font = Theme.font(size: 11, weight: .medium)
         titleLabel.textColor = Theme.textSecondary
 
-        let textView = NSTextView()
+        let scrollView = NSScrollView()
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = true
+        scrollView.backgroundColor = Theme.background
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+
+        let textView = NSTextView(frame: .zero)
         textView.string = combinedDetailText(finding: finding, rawReport: rawReport)
         textView.isEditable = false
         textView.isSelectable = true
@@ -587,23 +602,15 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         textView.textColor = Theme.textPrimary
         textView.backgroundColor = Theme.background
         textView.drawsBackground = true
-        textView.isHorizontallyResizable = false
+        textView.isHorizontallyResizable = true
         textView.isVerticallyResizable = true
-        textView.textContainerInset = NSSize(width: 6, height: 6)
-        textView.textContainer?.widthTracksTextView = true
+        textView.autoresizingMask = [.width, .height]
+        textView.textContainerInset = NSSize(width: 10, height: 10)
         textView.textContainer?.lineBreakMode = .byWordWrapping
-        textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
-        textView.minSize = NSSize(width: 0, height: 220)
+        textView.textContainer?.widthTracksTextView = true
 
-        let scrollView = NSScrollView()
-        scrollView.borderType = .noBorder
-        scrollView.drawsBackground = false
-        scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = false
-        scrollView.autohidesScrollers = true
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = textView
-        scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 220).isActive = true
+        scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 260).isActive = true
 
         stack.addArrangedSubview(titleLabel)
         stack.addArrangedSubview(scrollView)
@@ -635,7 +642,19 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
             ? "원본 리포트 내용이 없습니다."
             : rawReport.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        return "감지된 키\n\n\(key)\n\n탐지된 내용\n\n\(detail)\n\n원본 리포트\n\n\(report)"
+        return """
+        감지된 키:
+        --------------------------------------------------
+        \(key)
+
+        탐지된 내용:
+        --------------------------------------------------
+        \(detail)
+
+        원본 리포트:
+        --------------------------------------------------
+        \(report)
+        """
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int {
