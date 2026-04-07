@@ -366,8 +366,8 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
     private func buildFindingDetailWindow(for finding: ScanFinding) -> NSWindow {
         let detailWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 620),
-            styleMask: [.titled, .closable, .miniaturizable],
+            contentRect: NSRect(x: 0, y: 0, width: 900, height: 700),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
@@ -377,8 +377,8 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         detailWindow.titlebarAppearsTransparent = false
         detailWindow.backgroundColor = Theme.background
         detailWindow.isOpaque = true
-        detailWindow.minSize = NSSize(width: 680, height: 560)
-        detailWindow.maxSize = NSSize(width: 900, height: 900)
+        detailWindow.minSize = NSSize(width: 800, height: 600)
+        detailWindow.maxSize = NSSize(width: 1200, height: 1000)
         detailWindow.setFrameAutosaveName("FindKeyDetailWindow")
 
         let contentView = ThemedContainerView()
@@ -412,7 +412,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         let summaryStack = NSStackView()
         summaryStack.orientation = .vertical
-        summaryStack.spacing = 6
+        summaryStack.spacing = 8
         summaryStack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         summaryStack.translatesAutoresizingMaskIntoConstraints = false
 
@@ -426,7 +426,17 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         detectorValue.lineBreakMode = .byWordWrapping
         detectorValue.maximumNumberOfLines = 2
 
-        let detailPreviewLabel = NSTextField(labelWithString: "탐지된 내용")
+        let keyLabel = NSTextField(labelWithString: "탐지된 키")
+        keyLabel.font = Theme.font(size: 11, weight: .medium)
+        keyLabel.textColor = Theme.textSecondary
+
+        let keyValue = NSTextField(wrappingLabelWithString: finding.preview)
+        keyValue.font = Theme.font(size: 13, weight: .medium)
+        keyValue.textColor = Theme.accent
+        keyValue.lineBreakMode = .byCharWrapping
+        keyValue.maximumNumberOfLines = 0
+
+        let detailPreviewLabel = NSTextField(labelWithString: "탐지된 내용 (미리보기)")
         detailPreviewLabel.font = Theme.font(size: 11, weight: .medium)
         detailPreviewLabel.textColor = Theme.textSecondary
 
@@ -434,15 +444,21 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         detailPreviewValue.font = Theme.font(size: 12)
         detailPreviewValue.textColor = Theme.textPrimary
         detailPreviewValue.lineBreakMode = .byWordWrapping
-        detailPreviewValue.maximumNumberOfLines = 3
+        detailPreviewValue.maximumNumberOfLines = 5
 
         summaryStack.addArrangedSubview(detectorLabel)
         summaryStack.addArrangedSubview(detectorValue)
+        summaryStack.addArrangedSubview(keyLabel)
+        summaryStack.addArrangedSubview(keyValue)
         summaryStack.addArrangedSubview(detailPreviewLabel)
         summaryStack.addArrangedSubview(detailPreviewValue)
+
         summaryStack.setCustomSpacing(4, after: detectorLabel)
         summaryStack.setCustomSpacing(10, after: detectorValue)
+        summaryStack.setCustomSpacing(4, after: keyLabel)
+        summaryStack.setCustomSpacing(10, after: keyValue)
         summaryStack.setCustomSpacing(4, after: detailPreviewLabel)
+
         summaryContainer.addSubview(summaryStack)
 
         NSLayoutConstraint.activate([
