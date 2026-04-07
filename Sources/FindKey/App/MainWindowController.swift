@@ -414,28 +414,32 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         let summaryStack = NSStackView()
         summaryStack.orientation = .vertical
-        summaryStack.alignment = .width
+        summaryStack.alignment = .centerX
         summaryStack.spacing = 8
-        summaryStack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        summaryStack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
         summaryStack.translatesAutoresizingMaskIntoConstraints = false
 
         let detectorLabel = NSTextField(labelWithString: "탐지된 키 유형")
         detectorLabel.font = Theme.font(size: 11, weight: .medium)
         detectorLabel.textColor = Theme.textSecondary
+        detectorLabel.alignment = .center
 
         let detectorValue = NSTextField(labelWithString: finding.detector)
         detectorValue.font = Theme.font(size: 14, weight: .semibold)
         detectorValue.textColor = Theme.textPrimary
         detectorValue.lineBreakMode = .byWordWrapping
+        detectorValue.alignment = .center
         detectorValue.maximumNumberOfLines = 2
 
         let keyLabel = NSTextField(labelWithString: "탐지된 키")
         keyLabel.font = Theme.font(size: 11, weight: .medium)
         keyLabel.textColor = Theme.textSecondary
+        keyLabel.alignment = .center
 
         let keyValue = NSTextField(wrappingLabelWithString: finding.preview)
         keyValue.font = Theme.font(size: 13, weight: .medium)
         keyValue.textColor = Theme.accent
+        keyValue.alignment = .center
         keyValue.lineBreakMode = .byCharWrapping
         keyValue.isSelectable = true
         keyValue.maximumNumberOfLines = 0
@@ -443,10 +447,12 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         let detailPreviewLabel = NSTextField(labelWithString: "탐지된 내용 (미리보기)")
         detailPreviewLabel.font = Theme.font(size: 11, weight: .medium)
         detailPreviewLabel.textColor = Theme.textSecondary
+        detailPreviewLabel.alignment = .center
 
         let detailPreviewValue = NSTextField(wrappingLabelWithString: compactPreview(for: finding.detail))
         detailPreviewValue.font = Theme.font(size: 12)
         detailPreviewValue.textColor = Theme.textPrimary
+        detailPreviewValue.alignment = .center
         detailPreviewValue.lineBreakMode = .byWordWrapping
         detailPreviewValue.isSelectable = true
         detailPreviewValue.maximumNumberOfLines = 8
@@ -459,9 +465,9 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         summaryStack.addArrangedSubview(detailPreviewValue)
 
         summaryStack.setCustomSpacing(4, after: detectorLabel)
-        summaryStack.setCustomSpacing(10, after: detectorValue)
+        summaryStack.setCustomSpacing(16, after: detectorValue)
         summaryStack.setCustomSpacing(4, after: keyLabel)
-        summaryStack.setCustomSpacing(10, after: keyValue)
+        summaryStack.setCustomSpacing(16, after: keyValue)
         summaryStack.setCustomSpacing(4, after: detailPreviewLabel)
 
         summaryContainer.addSubview(summaryStack)
@@ -502,7 +508,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         ])
 
         let detailBlock = makeCombinedDetailBlock(
-            findingDetail: finding.detail,
+            finding: finding,
             rawReport: rawReportContents(for: finding)
         )
         detailBlock.setContentHuggingPriority(.defaultLow, for: .vertical)
@@ -556,7 +562,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         return row
     }
 
-    private func makeCombinedDetailBlock(findingDetail: String, rawReport: String) -> NSView {
+    private func makeCombinedDetailBlock(finding: ScanFinding, rawReport: String) -> NSView {
         let container = ThemedContainerView()
         container.fillColor = Theme.surface
         container.strokeColor = Theme.subtleBorder
@@ -574,7 +580,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         titleLabel.textColor = Theme.textSecondary
 
         let textView = NSTextView()
-        textView.string = combinedDetailText(findingDetail: findingDetail, rawReport: rawReport)
+        textView.string = combinedDetailText(finding: finding, rawReport: rawReport)
         textView.isEditable = false
         textView.isSelectable = true
         textView.font = Theme.font(size: 12)
@@ -619,16 +625,17 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         return trimmed
     }
 
-    private func combinedDetailText(findingDetail: String, rawReport: String) -> String {
-        let detail = findingDetail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    private func combinedDetailText(finding: ScanFinding, rawReport: String) -> String {
+        let key = finding.preview.trimmingCharacters(in: .whitespacesAndNewlines)
+        let detail = finding.detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? "표시할 상세 내용이 없습니다."
-            : findingDetail.trimmingCharacters(in: .whitespacesAndNewlines)
+            : finding.detail.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let report = rawReport.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? "원본 리포트 내용이 없습니다."
             : rawReport.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        return "탐지된 내용\n\n\(detail)\n\n원본 리포트\n\n\(report)"
+        return "감지된 키\n\n\(key)\n\n탐지된 내용\n\n\(detail)\n\n원본 리포트\n\n\(report)"
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int {
