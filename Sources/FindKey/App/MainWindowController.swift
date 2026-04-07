@@ -560,8 +560,10 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         let valueField = NSTextField(wrappingLabelWithString: value)
         valueField.font = Theme.font(size: 11)
         valueField.textColor = Theme.textPrimary
-        valueField.lineBreakMode = .byWordWrapping
+        valueField.lineBreakMode = .byCharWrapping
         valueField.maximumNumberOfLines = 0
+        valueField.isSelectable = true
+        valueField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         row.addArrangedSubview(labelField)
         row.addArrangedSubview(valueField)
