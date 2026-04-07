@@ -23,7 +23,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
     private let rawReportContainer = NSScrollView()
     private let rawReportTextView = NSTextView()
     private let rootContentView = ThemedContainerView()
-    private var findingDetailSheetWindow: NSWindow?
+    private var findingDetailWindowController: NSWindowController?
     private(set) var hasBuiltInterface = false
 
     init(appController: AppController) {
@@ -345,51 +345,46 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
     }
 
     @objc
-    private func dismissFindingDetailSheet() {
-        guard let sheetWindow = findingDetailSheetWindow,
-              let parentWindow = window
-        else {
-            return
-        }
-
-        parentWindow.endSheet(sheetWindow)
+    private func dismissFindingDetailWindow() {
+        findingDetailWindowController?.close()
+        findingDetailWindowController = nil
     }
 
     private func presentFindingDetailSheet(for finding: ScanFinding) {
-        guard let parentWindow = window else { return }
-
-        if let existingSheet = findingDetailSheetWindow,
-           parentWindow.attachedSheet === existingSheet {
-            parentWindow.endSheet(existingSheet)
+        if let existingWindow = findingDetailWindowController?.window {
+            existingWindow.close()
         }
 
-        let sheetWindow = buildFindingDetailSheetWindow(for: finding)
-        findingDetailSheetWindow = sheetWindow
-        parentWindow.beginSheet(sheetWindow) { [weak self] _ in
-            self?.findingDetailSheetWindow = nil
-        }
+        let detailWindow = buildFindingDetailWindow(for: finding)
+        let controller = NSWindowController(window: detailWindow)
+        findingDetailWindowController = controller
+        controller.showWindow(self)
+        detailWindow.center()
+        detailWindow.makeKeyAndOrderFront(self)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func buildFindingDetailSheetWindow(for finding: ScanFinding) -> NSWindow {
-        let sheetWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 420),
-            styleMask: [.titled],
+    private func buildFindingDetailWindow(for finding: ScanFinding) -> NSWindow {
+        let detailWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 720, height: 620),
+            styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
 
-        sheetWindow.title = "결과 상세"
-        sheetWindow.titleVisibility = .hidden
-        sheetWindow.titlebarAppearsTransparent = true
-        sheetWindow.backgroundColor = Theme.background
-        sheetWindow.isOpaque = true
-        sheetWindow.minSize = NSSize(width: 560, height: 520)
-        sheetWindow.maxSize = NSSize(width: 720, height: 760)
+        detailWindow.title = "결과 상세"
+        detailWindow.titleVisibility = .visible
+        detailWindow.titlebarAppearsTransparent = false
+        detailWindow.backgroundColor = Theme.background
+        detailWindow.isOpaque = true
+        detailWindow.minSize = NSSize(width: 680, height: 560)
+        detailWindow.maxSize = NSSize(width: 900, height: 900)
+        detailWindow.setFrameAutosaveName("FindKeyDetailWindow")
 
         let contentView = ThemedContainerView()
         contentView.fillColor = Theme.background
         contentView.translatesAutoresizingMaskIntoConstraints = false
-        sheetWindow.contentView = contentView
+        detailWindow.contentView = contentView
 
         let stack = NSStackView()
         stack.orientation = .vertical
@@ -399,7 +394,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         let titleLabel = LabelFactory.section("결과 상세")
         let closeButton = NSButton(title: "닫기", target: nil, action: nil)
-        configure(button: closeButton, primary: false, action: #selector(dismissFindingDetailSheet))
+        configure(button: closeButton, primary: false, action: #selector(dismissFindingDetailWindow))
         closeButton.widthAnchor.constraint(equalToConstant: 72).isActive = true
 
         let headerRow = NSStackView()
@@ -484,6 +479,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
             findingDetail: finding.detail,
             rawReport: rawReportContents(for: finding)
         )
+        detailBlock.heightAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
 
         stack.addArrangedSubview(headerRow)
         stack.addArrangedSubview(summaryContainer)
@@ -499,7 +495,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
             stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
         ])
 
-        return sheetWindow
+        return detailWindow
     }
 
     private func rawReportContents(for finding: ScanFinding) -> String {
