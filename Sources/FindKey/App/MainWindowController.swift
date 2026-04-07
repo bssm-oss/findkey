@@ -388,7 +388,9 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         let stack = NSStackView()
         stack.orientation = .vertical
-        stack.spacing = 12
+        stack.alignment = .width
+        stack.distribution = .fill
+        stack.spacing = 16
         stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
         stack.translatesAutoresizingMaskIntoConstraints = false
 
@@ -412,6 +414,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         let summaryStack = NSStackView()
         summaryStack.orientation = .vertical
+        summaryStack.alignment = .width
         summaryStack.spacing = 8
         summaryStack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         summaryStack.translatesAutoresizingMaskIntoConstraints = false
@@ -434,6 +437,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         keyValue.font = Theme.font(size: 13, weight: .medium)
         keyValue.textColor = Theme.accent
         keyValue.lineBreakMode = .byCharWrapping
+        keyValue.isSelectable = true
         keyValue.maximumNumberOfLines = 0
 
         let detailPreviewLabel = NSTextField(labelWithString: "탐지된 내용 (미리보기)")
@@ -444,7 +448,8 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         detailPreviewValue.font = Theme.font(size: 12)
         detailPreviewValue.textColor = Theme.textPrimary
         detailPreviewValue.lineBreakMode = .byWordWrapping
-        detailPreviewValue.maximumNumberOfLines = 5
+        detailPreviewValue.isSelectable = true
+        detailPreviewValue.maximumNumberOfLines = 8
 
         summaryStack.addArrangedSubview(detectorLabel)
         summaryStack.addArrangedSubview(detectorValue)
@@ -475,6 +480,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         let metadataStack = NSStackView()
         metadataStack.orientation = .vertical
+        metadataStack.alignment = .width
         metadataStack.spacing = 6
         metadataStack.edgeInsets = NSEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
         metadataStack.translatesAutoresizingMaskIntoConstraints = false
@@ -499,7 +505,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
             findingDetail: finding.detail,
             rawReport: rawReportContents(for: finding)
         )
-        detailBlock.heightAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
+        detailBlock.setContentHuggingPriority(.defaultLow, for: .vertical)
 
         stack.addArrangedSubview(headerRow)
         stack.addArrangedSubview(summaryContainer)
@@ -558,6 +564,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         let stack = NSStackView()
         stack.orientation = .vertical
+        stack.alignment = .width
         stack.spacing = 8
         stack.edgeInsets = NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         stack.translatesAutoresizingMaskIntoConstraints = false
