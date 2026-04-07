@@ -12,6 +12,9 @@ final class AppController {
     init(repositoryService: GitHubRepositoryService, scanOrchestrator: ScanOrchestrator) {
         self.repositoryService = repositoryService
         self.scanOrchestrator = scanOrchestrator
+
+        // Perform cleanup of leftover temporary directories from previous runs.
+        TemporaryWorkspace.garbageCollect()
     }
 
     func enumerateRepositories(urlString: String, token: String?) {
