@@ -108,7 +108,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         configureInputField(githubURLField, placeholder: "GitHub 저장소 목록 URL")
-        configureInputField(tokenField, placeholder: "GitHub 토큰 (선택)")
+        configureInputField(tokenField, placeholder: "GitHub 토큰 (API 제한/권한 필요 시 입력)")
 
         configure(button: enumerateButton, primary: false, action: #selector(didTapResolve))
         configure(button: scanButton, primary: true, action: #selector(didTapScan))
@@ -127,7 +127,14 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         errorLabel.font = Theme.font(size: 11)
         errorLabel.textColor = Theme.danger
         errorLabel.lineBreakMode = .byWordWrapping
-        errorLabel.maximumNumberOfLines = 2
+        errorLabel.maximumNumberOfLines = 3
+        errorLabel.translatesAutoresizingMaskIntoConstraints = false
+        errorLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        errorLabel.isSelectable = true
+
+        // Add a click gesture to show full error
+        let errorClickGesture = NSClickGestureRecognizer(target: self, action: #selector(didClickErrorLabel))
+        errorLabel.addGestureRecognizer(errorClickGesture)
 
         let buttonRow = NSStackView()
         buttonRow.orientation = .horizontal
@@ -333,6 +340,17 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         let showFindings = resultsSegmentedControl.selectedSegment == ResultTab.findings.rawValue
         findingsContainer.isHidden = !showFindings
         rawReportContainer.isHidden = showFindings
+    }
+
+    @objc
+    private func didClickErrorLabel() {
+        guard !errorLabel.stringValue.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = "오류 상세 내용"
+        alert.informativeText = errorLabel.stringValue
+        alert.addButton(withTitle: "확인")
+        alert.alertStyle = .informational
+        alert.beginSheetModal(for: self.window!)
     }
 
     @objc
