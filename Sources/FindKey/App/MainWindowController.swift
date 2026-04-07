@@ -383,8 +383,8 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         sheetWindow.titlebarAppearsTransparent = true
         sheetWindow.backgroundColor = Theme.background
         sheetWindow.isOpaque = true
-        sheetWindow.minSize = NSSize(width: 560, height: 420)
-        sheetWindow.maxSize = NSSize(width: 560, height: 420)
+        sheetWindow.minSize = NSSize(width: 560, height: 520)
+        sheetWindow.maxSize = NSSize(width: 720, height: 760)
 
         let contentView = ThemedContainerView()
         contentView.fillColor = Theme.background
@@ -410,6 +410,49 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         headerRow.addArrangedSubview(NSView())
         headerRow.addArrangedSubview(closeButton)
 
+        let summaryContainer = ThemedContainerView()
+        summaryContainer.fillColor = Theme.surface
+        summaryContainer.strokeColor = Theme.subtleBorder
+        summaryContainer.translatesAutoresizingMaskIntoConstraints = false
+
+        let summaryStack = NSStackView()
+        summaryStack.orientation = .vertical
+        summaryStack.spacing = 8
+        summaryStack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        summaryStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let detectorLabel = NSTextField(labelWithString: "탐지된 키 유형")
+        detectorLabel.font = Theme.font(size: 11, weight: .medium)
+        detectorLabel.textColor = Theme.textSecondary
+
+        let detectorValue = NSTextField(labelWithString: finding.detector)
+        detectorValue.font = Theme.font(size: 15, weight: .semibold)
+        detectorValue.textColor = Theme.textPrimary
+        detectorValue.lineBreakMode = .byTruncatingTail
+
+        let detailPreviewLabel = NSTextField(labelWithString: "탐지된 내용")
+        detailPreviewLabel.font = Theme.font(size: 11, weight: .medium)
+        detailPreviewLabel.textColor = Theme.textSecondary
+
+        let detailPreviewValue = NSTextField(wrappingLabelWithString: compactPreview(for: finding.detail))
+        detailPreviewValue.font = Theme.font(size: 12)
+        detailPreviewValue.textColor = Theme.textPrimary
+        detailPreviewValue.lineBreakMode = .byTruncatingTail
+        detailPreviewValue.maximumNumberOfLines = 2
+
+        summaryStack.addArrangedSubview(detectorLabel)
+        summaryStack.addArrangedSubview(detectorValue)
+        summaryStack.addArrangedSubview(detailPreviewLabel)
+        summaryStack.addArrangedSubview(detailPreviewValue)
+        summaryContainer.addSubview(summaryStack)
+
+        NSLayoutConstraint.activate([
+            summaryStack.leadingAnchor.constraint(equalTo: summaryContainer.leadingAnchor),
+            summaryStack.trailingAnchor.constraint(equalTo: summaryContainer.trailingAnchor),
+            summaryStack.topAnchor.constraint(equalTo: summaryContainer.topAnchor),
+            summaryStack.bottomAnchor.constraint(equalTo: summaryContainer.bottomAnchor),
+        ])
+
         let metadataContainer = ThemedContainerView()
         metadataContainer.fillColor = Theme.surface
         metadataContainer.strokeColor = Theme.subtleBorder
@@ -418,14 +461,13 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         let metadataStack = NSStackView()
         metadataStack.orientation = .vertical
         metadataStack.spacing = 6
-        metadataStack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        metadataStack.edgeInsets = NSEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
         metadataStack.translatesAutoresizingMaskIntoConstraints = false
 
         [
             makeMetadataRow(label: "저장소", value: finding.repository),
-            makeMetadataRow(label: "도구", value: finding.tool.rawValue),
-            makeMetadataRow(label: "탐지기", value: finding.detector),
             makeMetadataRow(label: "경로", value: finding.pathWithLine),
+            makeMetadataRow(label: "도구", value: finding.tool.rawValue),
             makeMetadataRow(label: "상태", value: finding.status.rawValue),
         ].forEach { metadataStack.addArrangedSubview($0) }
 
@@ -438,22 +480,15 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
             metadataStack.bottomAnchor.constraint(equalTo: metadataContainer.bottomAnchor),
         ])
 
-        let detailBlock = makeDetailBlock(
-            title: "탐지 내용",
-            text: finding.detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "표시할 상세 내용이 없습니다." : finding.detail,
-            minimumHeight: 148
-        )
-
-        let reportBlock = makeDetailBlock(
-            title: "원본 리포트",
-            text: rawReportContents(for: finding),
-            minimumHeight: 148
+        let detailBlock = makeCombinedDetailBlock(
+            findingDetail: finding.detail,
+            rawReport: rawReportContents(for: finding)
         )
 
         stack.addArrangedSubview(headerRow)
+        stack.addArrangedSubview(summaryContainer)
         stack.addArrangedSubview(metadataContainer)
         stack.addArrangedSubview(detailBlock)
-        stack.addArrangedSubview(reportBlock)
 
         contentView.addSubview(stack)
 
@@ -499,7 +534,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         return row
     }
 
-    private func makeDetailBlock(title: String, text: String, minimumHeight: CGFloat) -> NSView {
+    private func makeCombinedDetailBlock(findingDetail: String, rawReport: String) -> NSView {
         let container = ThemedContainerView()
         container.fillColor = Theme.surface
         container.strokeColor = Theme.subtleBorder
@@ -511,31 +546,34 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         stack.edgeInsets = NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         stack.translatesAutoresizingMaskIntoConstraints = false
 
-        let titleLabel = NSTextField(labelWithString: title)
+        let titleLabel = NSTextField(labelWithString: "상세 내용")
         titleLabel.font = Theme.font(size: 11, weight: .medium)
         titleLabel.textColor = Theme.textSecondary
 
         let textView = NSTextView()
-        textView.string = text
+        textView.string = combinedDetailText(findingDetail: findingDetail, rawReport: rawReport)
         textView.isEditable = false
         textView.isSelectable = true
-        textView.font = Theme.font(size: 11)
+        textView.font = Theme.font(size: 12)
         textView.textColor = Theme.textPrimary
         textView.backgroundColor = Theme.background
         textView.drawsBackground = true
-        textView.isHorizontallyResizable = false
+        textView.isHorizontallyResizable = true
         textView.isVerticallyResizable = true
         textView.textContainerInset = NSSize(width: 6, height: 6)
-        textView.textContainer?.widthTracksTextView = true
-        textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = false
+        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.minSize = NSSize(width: 0, height: 220)
 
         let scrollView = NSScrollView()
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = true
+        scrollView.autohidesScrollers = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = textView
-        scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: minimumHeight).isActive = true
+        scrollView.heightAnchor.constraint(greaterThanOrEqualToConstant: 220).isActive = true
 
         stack.addArrangedSubview(titleLabel)
         stack.addArrangedSubview(scrollView)
@@ -549,6 +587,24 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         ])
 
         return container
+    }
+
+    private func compactPreview(for text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "표시할 상세 내용이 없습니다." }
+        return trimmed
+    }
+
+    private func combinedDetailText(findingDetail: String, rawReport: String) -> String {
+        let detail = findingDetail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "표시할 상세 내용이 없습니다."
+            : findingDetail.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let report = rawReport.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "원본 리포트 내용이 없습니다."
+            : rawReport.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return "탐지된 내용\n\n\(detail)\n\n원본 리포트\n\n\(report)"
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int {
