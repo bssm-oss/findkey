@@ -59,7 +59,7 @@ struct TruffleHogEventParser: Sendable {
                 guard line.first == "{" else { return nil }
                 let event = try decoder.decode(TruffleHogFindingPayload.self, from: Data(line.utf8))
                 let path = event.sourceMetadata?.data?.git?.file ?? "unknown"
-                let repositoryName = event.sourceMetadata?.data?.git?.repository ?? repository
+                let repositoryName = repository
                 let preview = event.raw ?? event.redacted ?? "Credential candidate detected by TruffleHog."
                 let status: ScanFindingStatus = if event.verified == true {
                     .verified
