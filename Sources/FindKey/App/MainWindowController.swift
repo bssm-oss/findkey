@@ -412,7 +412,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         let summaryStack = NSStackView()
         summaryStack.orientation = .vertical
-        summaryStack.spacing = 8
+        summaryStack.spacing = 6
         summaryStack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         summaryStack.translatesAutoresizingMaskIntoConstraints = false
 
@@ -421,9 +421,10 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         detectorLabel.textColor = Theme.textSecondary
 
         let detectorValue = NSTextField(labelWithString: finding.detector)
-        detectorValue.font = Theme.font(size: 15, weight: .semibold)
+        detectorValue.font = Theme.font(size: 14, weight: .semibold)
         detectorValue.textColor = Theme.textPrimary
-        detectorValue.lineBreakMode = .byTruncatingTail
+        detectorValue.lineBreakMode = .byWordWrapping
+        detectorValue.maximumNumberOfLines = 2
 
         let detailPreviewLabel = NSTextField(labelWithString: "탐지된 내용")
         detailPreviewLabel.font = Theme.font(size: 11, weight: .medium)
@@ -432,13 +433,16 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         let detailPreviewValue = NSTextField(wrappingLabelWithString: compactPreview(for: finding.detail))
         detailPreviewValue.font = Theme.font(size: 12)
         detailPreviewValue.textColor = Theme.textPrimary
-        detailPreviewValue.lineBreakMode = .byTruncatingTail
-        detailPreviewValue.maximumNumberOfLines = 2
+        detailPreviewValue.lineBreakMode = .byWordWrapping
+        detailPreviewValue.maximumNumberOfLines = 3
 
         summaryStack.addArrangedSubview(detectorLabel)
         summaryStack.addArrangedSubview(detectorValue)
         summaryStack.addArrangedSubview(detailPreviewLabel)
         summaryStack.addArrangedSubview(detailPreviewValue)
+        summaryStack.setCustomSpacing(4, after: detectorLabel)
+        summaryStack.setCustomSpacing(10, after: detectorValue)
+        summaryStack.setCustomSpacing(4, after: detailPreviewLabel)
         summaryContainer.addSubview(summaryStack)
 
         NSLayoutConstraint.activate([
@@ -461,9 +465,9 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         [
             makeMetadataRow(label: "저장소", value: finding.repository),
-            makeMetadataRow(label: "경로", value: finding.pathWithLine),
             makeMetadataRow(label: "도구", value: finding.tool.rawValue),
             makeMetadataRow(label: "상태", value: finding.status.rawValue),
+            makeMetadataRow(label: "경로", value: finding.pathWithLine),
         ].forEach { metadataStack.addArrangedSubview($0) }
 
         metadataContainer.addSubview(metadataStack)
@@ -554,18 +558,19 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         textView.textColor = Theme.textPrimary
         textView.backgroundColor = Theme.background
         textView.drawsBackground = true
-        textView.isHorizontallyResizable = true
+        textView.isHorizontallyResizable = false
         textView.isVerticallyResizable = true
         textView.textContainerInset = NSSize(width: 6, height: 6)
-        textView.textContainer?.widthTracksTextView = false
-        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.lineBreakMode = .byWordWrapping
+        textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
         textView.minSize = NSSize(width: 0, height: 220)
 
         let scrollView = NSScrollView()
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = true
+        scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = textView
