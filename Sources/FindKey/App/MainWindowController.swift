@@ -13,6 +13,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
     private let tokenField = NSSecureTextField(string: "")
     private let enumerateButton = NSButton(title: "저장소 조회", target: nil, action: nil)
     private let scanButton = NSButton(title: "스캔 시작", target: nil, action: nil)
+    private let stopButton = NSButton(title: "중단", target: nil, action: nil)
     private let statusLineLabel = NSTextField(labelWithString: "GitHub 저장소 목록 URL을 입력해 시작하세요.")
     private let progressIndicator = NSProgressIndicator()
     private let errorLabel = NSTextField(labelWithString: "")
@@ -112,6 +113,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         configure(button: enumerateButton, primary: false, action: #selector(didTapResolve))
         configure(button: scanButton, primary: true, action: #selector(didTapScan))
+        configure(button: stopButton, primary: false, action: #selector(didTapStop))
 
         statusLineLabel.font = Theme.font(size: 12, weight: .medium)
         statusLineLabel.textColor = Theme.textPrimary
@@ -142,6 +144,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
         buttonRow.distribution = .fillEqually
         buttonRow.addArrangedSubview(enumerateButton)
         buttonRow.addArrangedSubview(scanButton)
+        buttonRow.addArrangedSubview(stopButton)
 
         stack.addArrangedSubview(githubURLField)
         stack.addArrangedSubview(tokenField)
@@ -297,6 +300,7 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
 
         enumerateButton.isEnabled = !state.isEnumerating && !state.isScanning
         scanButton.isEnabled = !state.isEnumerating && !state.isScanning && !state.repositories.isEmpty
+        stopButton.isEnabled = state.isEnumerating || state.isScanning
         githubURLField.isEnabled = !state.isScanning
         tokenField.isEnabled = !state.isScanning
 
@@ -333,6 +337,11 @@ final class MainWindowController: NSWindowController, NSTableViewDataSource, NST
     @objc
     private func didTapScan() {
         appController.scanRepositories(token: tokenField.stringValue.nilIfEmpty)
+    }
+
+    @objc
+    private func didTapStop() {
+        appController.stopActiveTask()
     }
 
     @objc
