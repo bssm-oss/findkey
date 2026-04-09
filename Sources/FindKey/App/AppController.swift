@@ -55,6 +55,15 @@ final class AppController {
         }
     }
 
+    func stopActiveTask() {
+        activeTask?.cancel()
+        state.isScanning = false
+        state.isEnumerating = false
+        state.progressMode = .idle
+        state.statusMessage = "작업이 사용자에 의해 중단되었습니다."
+        publish()
+    }
+
     func scanRepositories(token: String?) {
         guard !state.repositories.isEmpty else {
             state.errorMessage = "먼저 저장소 목록을 조회해야 스캔을 시작할 수 있습니다."
@@ -96,6 +105,9 @@ final class AppController {
                     failedRepositoryCount: result.failedRepositories.count
                 )
                 publish()
+            } catch is CancellationError {
+                // Task was cancelled, state already updated or will be updated by stopActiveTask
+                return
             } catch {
                 guard !Task.isCancelled else { return }
                 apply(error: error, fallbackMessage: "스캔에 실패했습니다.")
